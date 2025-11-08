@@ -361,8 +361,14 @@
 
                 <!-- Colonne 2: Liste des Magasins et Appareils -->
                 <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
-                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Vos Magasins et Appareils</h2>
-                    
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+                        <h2 class="text-xl font-bold text-primary-dark">Vos Magasins et Appareils</h2>
+                        <div class="w-full sm:w-72">
+                            <label for="store-search-input" class="block text-sm font-medium text-gray-600">Rechercher un magasin</label>
+                            <input id="store-search-input" type="search" placeholder="Nom ou code du magasin" class="form-field mt-1" />
+                        </div>
+                    </div>
+
                     <!-- NOUVELLE BARRE D'ACTIONS DE MASSE -->
                     <div id="bulk-action-bar" class="hidden bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4 flex flex-wrap gap-2 items-center justify-between">
                         <div>
@@ -430,18 +436,24 @@
         <div id="page-reports" class="page hidden">
             <div class="bg-white p-6 rounded-lg shadow-lg">
                 <h2 class="text-2xl font-bold mb-6 text-primary-dark">Rapports d'Intervention</h2>
-                
+
                 <!-- Filtres -->
-                <div class="mb-4">
-                    <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par Magasin</label>
-                    <select id="report-filter-store" class="form-field custom-select max-w-xs">
-                        <option value="all">Tous les magasins</option>
-                        <!-- Options remplies par JS -->
-                    </select>
+                <div class="grid gap-4 sm:grid-cols-2 mb-6">
+                    <div>
+                        <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par Magasin</label>
+                        <select id="report-filter-store" class="form-field custom-select">
+                            <option value="all">Tous les magasins</option>
+                            <!-- Options remplies par JS -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="report-search-input" class="block text-gray-700 font-medium mb-1">Rechercher un magasin</label>
+                        <input id="report-search-input" type="search" placeholder="Nom ou code du magasin" class="form-field" />
+                    </div>
                 </div>
-                
+
                 <!-- Liste des rapports -->
-                <div id="reports-list" class="divide-y divide-gray-200">
+                <div id="reports-list" class="space-y-4">
                     <!-- Contenu généré par JS -->
                     <p class="text-gray-500 py-4">Aucun rapport soumis pour le moment.</p>
                 </div>
@@ -643,7 +655,10 @@
 
     <!-- Modal pour les messages (erreurs, succès) -->
     <div id="message-modal" class="fixed top-5 right-5 bg-red-600 text-white p-4 rounded-lg shadow-xl z-50 hidden transition-opacity duration-300" role="alert">
-        <p id="message-text"></p>
+        <div class="flex items-center gap-3">
+            <p id="message-text" class="flex-1"></p>
+            <button id="message-action-btn" class="hidden text-sm font-semibold underline decoration-2 decoration-white/70 focus:outline-none">Annuler</button>
+        </div>
     </div>
 
     <!-- NOUVELLE MODALE: Duplication d'Appareils -->
@@ -662,6 +677,23 @@
                     <button type="submit" class="btn btn-secondary">
                         Dupliquer
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal d'édition de Rapport -->
+    <div id="edit-report-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier le rapport</h2>
+            <form id="edit-report-form" class="space-y-4">
+                <input type="hidden" id="edit-report-id">
+                <div id="edit-report-fields" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    <!-- Champs générés dynamiquement -->
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
                 </div>
             </form>
         </div>
@@ -741,6 +773,13 @@
         let allEquipmentTypes = [];
         let equipmentListenerReady = false; // Flag pour gérer le chargement
         let selectedEquipmentIds = new Set(); // NOUVEAU: Pour la sélection multiple
+        let storeSearchTerm = '';
+        let openStoreIds = new Set();
+        let reportSearchTerm = '';
+        let openReportStoreIds = new Set();
+        let currentBulkQrData = [];
+        let messageTimeoutId = null;
+        let messageActionHandler = null;
         
         // Listeners (pour les arrêter)
         let unsubForms = () => {}, unsubStores = () => {}, unsubEquipment = () => {}, unsubReports = () => {}, unsubUsers = () => {}, unsubEquipmentTypes = () => {};
@@ -763,6 +802,15 @@
                 console.warn(`Élément introuvable: #${id}.`);
             }
             return el;
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         // --- Initialisation ---
@@ -1051,65 +1099,106 @@
             const listContainer = getEl('stores-list');
             if (!listContainer) return;
 
+            const searchInput = getEl('store-search-input');
+            if (searchInput && searchInput.value !== storeSearchTerm) {
+                searchInput.value = storeSearchTerm;
+            }
+
             if (allStores.length === 0) {
                 listContainer.innerHTML = '<p class="text-gray-500">Aucun magasin enregistré pour le moment.</p>';
                 return;
             }
 
-            listContainer.innerHTML = allStores
-                .sort((a,b) => a.name.localeCompare(b.name)) // Trier les magasins par nom
-                .map(store => {
-                    const equipmentList = allEquipment
-                        .filter(e => e.storeId === store.id)
-                        .sort((a,b) => a.name.localeCompare(b.name)); // Trier les appareils par nom
-                        
-                    return `
-                    <div class="border border-gray-200 rounded-lg overflow-hidden">
-                        <div class="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
-                            <div>
-                                <h3 class="text-lg font-bold text-primary">${store.name}</h3>
-                                <p class="text-sm text-gray-500">Code: ${store.code}</p>
-                            </div>
-                            <div class="flex space-x-2">
-                                <button class="edit-store-btn text-sm bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-store-id="${store.id}">Modifier</button>
-                                <button class="delete-store-btn text-sm btn-danger text-white px-3 py-1 rounded-lg hover:bg-red-600 font-medium" data-store-id="${store.id}">Supprimer</button>
-                            </div>
-                        </div>
-                        <div class="p-4 space-y-3">
-                            <h4 class="font-semibold text-gray-700">Appareils :</h4>
-                            ${equipmentList.length > 0 ? equipmentList.map(equip => {
-                                const equipType = allEquipmentTypes.find(t => t.id === equip.type);
-                                const emoji = equipType ? equipType.emoji : '⚙️';
-                                const isChecked = selectedEquipmentIds.has(equip.id) ? 'checked' : '';
-                                return `
-                                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-md">
-                                    <!-- NOUVELLE CHECKBOX -->
-                                    <div class="flex items-center">
-                                        <input type="checkbox" class="equip-select-checkbox h-5 w-5 rounded mr-3" data-equip-id="${equip.id}" ${isChecked}>
-                                        <div>
-                                            <span class="text-2xl mr-2">${emoji}</span>
-                                            <span class="font-medium">${equip.name}</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-wrap gap-2 justify-end">
-                                        <button class="edit-equip-btn text-xs bg-yellow-500 text-white px-2 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-equip-id="${equip.id}">Modifier</button>
-                                        <button class="delete-equip-btn text-xs btn-danger text-white px-2 py-1 rounded-lg hover:bg-red-600 font-medium" data-equip-id="${equip.id}">Suppr.</button>
-                                        <button class="generate-qr-btn bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-50 font-medium"
-                                                data-equip-id="${equip.id}"
-                                                data-store-id="${store.id}"
-                                                data-form-id="${equip.formId}"
-                                                data-store-name="${store.name}"
-                                                data-equip-name="${equip.name}">
-                                            Générer QR
-                                        </button>
+            const normalizedTerm = storeSearchTerm.trim().toLowerCase();
+            openStoreIds = new Set([...openStoreIds].filter(id => allStores.some(store => store.id === id)));
+
+            const filteredStores = allStores
+                .filter(store => {
+                    if (!normalizedTerm) return true;
+                    const name = (store.name || '').toLowerCase();
+                    const code = (store.code || '').toLowerCase();
+                    return name.includes(normalizedTerm) || code.includes(normalizedTerm);
+                })
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            if (filteredStores.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">Aucun magasin ne correspond à votre recherche.</p>';
+                return;
+            }
+
+            listContainer.innerHTML = filteredStores.map(store => {
+                const equipmentList = allEquipment
+                    .filter(e => e.storeId === store.id)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                const hasSearch = normalizedTerm.length > 0;
+                const isOpen = hasSearch || openStoreIds.has(store.id);
+                const toggleIcon = isOpen ? '&minus;' : '+';
+                const equipmentWrapperClasses = `p-4 space-y-3 bg-white ${isOpen ? '' : 'hidden'}`;
+                const storeNameSafe = escapeHtml(store.name || 'Magasin');
+                const storeCodeSafe = escapeHtml(store.code || '');
+
+                const equipmentsHtml = equipmentList.length > 0
+                    ? equipmentList.map(equip => {
+                        const equipType = allEquipmentTypes.find(t => t.id === equip.type);
+                        const emoji = equipType ? equipType.emoji : '⚙️';
+                        const isChecked = selectedEquipmentIds.has(equip.id) ? 'checked' : '';
+                        const equipNameSafe = escapeHtml(equip.name);
+                        return `
+                            <div class="flex justify-between items-center p-3 bg-gray-100 rounded-md">
+                                <div class="flex items-center">
+                                    <input type="checkbox" class="equip-select-checkbox h-5 w-5 rounded mr-3" data-equip-id="${equip.id}" ${isChecked}>
+                                    <div>
+                                        <span class="text-2xl mr-2">${emoji}</span>
+                                        <span class="font-medium">${equipNameSafe}</span>
                                     </div>
                                 </div>
-                            `}).join('') : '<p class="text-sm text-gray-500">Aucun appareil ajouté.</p>'}
+                                <div class="flex flex-wrap gap-2 justify-end">
+                                    <button class="edit-equip-btn text-xs bg-yellow-500 text-white px-2 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-equip-id="${equip.id}">Modifier</button>
+                                    <button class="delete-equip-btn text-xs btn-danger text-white px-2 py-1 rounded-lg hover:bg-red-600 font-medium" data-equip-id="${equip.id}">Suppr.</button>
+                                    <button class="generate-qr-btn bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-50 font-medium"
+                                            data-equip-id="${equip.id}"
+                                            data-store-id="${store.id}"
+                                            data-form-id="${equip.formId}"
+                                            data-store-name="${escapeHtml(store.name || '')}"
+                                            data-equip-name="${escapeHtml(equip.name || '')}">
+                                        Générer QR
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')
+                    : '<p class="text-sm text-gray-500">Aucun appareil ajouté pour le moment.</p>';
+
+                return `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden" data-store-id="${store.id}">
+                        <div class="bg-gray-50 p-4 border-b border-gray-200">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <button type="button" class="store-toggle flex-1 text-left" data-store-id="${store.id}">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 class="text-lg font-bold text-primary">${storeNameSafe}</h3>
+                                            <p class="text-sm text-gray-500">Code: ${storeCodeSafe || '—'}</p>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                                            <span>${equipmentList.length} appareil(s)</span>
+                                            <span class="text-xl font-bold text-secondary">${toggleIcon}</span>
+                                        </div>
+                                    </div>
+                                </button>
+                                <div class="flex space-x-2">
+                                    <button class="edit-store-btn text-sm bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-store-id="${store.id}">Modifier</button>
+                                    <button class="delete-store-btn text-sm btn-danger text-white px-3 py-1 rounded-lg hover:bg-red-600 font-medium" data-store-id="${store.id}">Supprimer</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="${equipmentWrapperClasses}" data-store-equipments="${store.id}">
+                            <h4 class="font-semibold text-gray-700">Appareils :</h4>
+                            ${equipmentsHtml}
                         </div>
                     </div>
                 `;
-                })
-                .join('');
+            }).join('');
         }
         
         // Rendu de la liste des formulaires
@@ -1149,57 +1238,257 @@
         function renderReportsList() {
             const listContainer = getEl('reports-list');
             const filterSelect = getEl('report-filter-store');
-            
-            if (!listContainer || !filterSelect) return;
-            
-            const filterStoreId = filterSelect.value;
-            
-            const filteredReports = allReports.filter(report => 
-                filterStoreId === 'all' || report.storeId === filterStoreId
-            );
 
-            if (filteredReports.length === 0) {
-                listContainer.innerHTML = '<p class="text-gray-500 py-4">Aucun rapport ne correspond à ce filtre.</p>';
+            if (!listContainer || !filterSelect) return;
+
+            const searchInput = getEl('report-search-input');
+            if (searchInput && searchInput.value !== reportSearchTerm) {
+                searchInput.value = reportSearchTerm;
+            }
+
+            const filterStoreId = filterSelect.value;
+            const normalizedSearch = reportSearchTerm.trim().toLowerCase();
+
+            const grouped = new Map();
+
+            allReports.forEach(report => {
+                if (filterStoreId !== 'all' && report.storeId !== filterStoreId) return;
+
+                const store = allStores.find(s => s.id === report.storeId);
+                const storeName = store ? store.name : `Magasin inconnu`;
+                const storeCode = store ? (store.code || '') : '';
+                const matchesSearch = !normalizedSearch ||
+                    storeName.toLowerCase().includes(normalizedSearch) ||
+                    storeCode.toLowerCase().includes(normalizedSearch);
+
+                if (!matchesSearch) return;
+
+                if (!grouped.has(report.storeId)) {
+                    grouped.set(report.storeId, { store, reports: [] });
+                }
+                grouped.get(report.storeId).reports.push(report);
+            });
+
+            if (grouped.size === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 py-4">Aucun rapport ne correspond à votre recherche.</p>';
                 return;
             }
 
-            listContainer.innerHTML = filteredReports.map(report => {
-                const store = allStores.find(s => s.id === report.storeId);
-                const storeName = store ? store.name : `ID: ${report.storeId}`;
-                const reportDate = report.timestamp?.toDate ? report.timestamp.toDate().toLocaleString('fr-FR') : 'Date inconnue';
-                
-                // NOUVELLE LOGIQUE: Afficher les données de formulaire complexes
-                const dataHtml = Object.entries(report.data).map(([key, value]) => {
-                    let displayValue;
-                    if (Array.isArray(value)) {
-                        // Pour les checkboxes (choix multiples)
-                        displayValue = `<ul>${value.map(v => `<li class="ml-4 list-disc">${v}</li>`).join('')}</ul>`;
-                    } else {
-                        // Pour tout le reste (texte, radio, select)
-                        displayValue = `<span class="font-medium">${String(value)}</span>`; // Assurer que c'est une chaîne
-                    }
-                    return `<li><strong>${key}:</strong> ${displayValue}</li>`;
+            openReportStoreIds = new Set([...openReportStoreIds].filter(id => grouped.has(id)));
+
+            const groupedArray = Array.from(grouped.entries()).map(([storeId, data]) => ({
+                storeId,
+                store: data.store,
+                reports: data.reports.sort((a, b) => {
+                    const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(0);
+                    const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(0);
+                    return dateB - dateA;
+                })
+            })).sort((a, b) => {
+                const nameA = a.store ? a.store.name : '';
+                const nameB = b.store ? b.store.name : '';
+                return nameA.localeCompare(nameB);
+            });
+
+            listContainer.innerHTML = groupedArray.map(group => {
+                const storeName = group.store ? group.store.name : `Magasin inconnu`;
+                const storeCode = group.store && group.store.code ? group.store.code : '';
+                const storeNameSafe = escapeHtml(storeName);
+                const storeCodeSafe = escapeHtml(storeCode);
+                const hasSearch = normalizedSearch.length > 0;
+                const isOpen = hasSearch || openReportStoreIds.has(group.storeId);
+                const toggleIcon = isOpen ? '&minus;' : '+';
+                const wrapperClasses = `divide-y divide-gray-200 ${isOpen ? '' : 'hidden'}`;
+
+                const reportsHtml = group.reports.map(report => {
+                    const reportDate = report.timestamp?.toDate ? report.timestamp.toDate().toLocaleString('fr-FR') : 'Date inconnue';
+                    const submitter = report.userEmail || report.userId || 'Utilisateur inconnu';
+                    const reportDateSafe = escapeHtml(reportDate);
+                    const submitterSafe = escapeHtml(submitter);
+                    const dataEntries = Object.entries(report.data || {});
+                    const dataHtml = dataEntries.length > 0
+                        ? dataEntries.map(([key, value]) => {
+                            const keySafe = escapeHtml(key);
+                            if (Array.isArray(value)) {
+                                const listItems = value.map(v => `<li class="ml-4 list-disc">${escapeHtml(v)}</li>`).join('');
+                                return `<li><strong>${keySafe}:</strong><ul>${listItems}</ul></li>`;
+                            }
+                            return `<li><strong>${keySafe}:</strong> <span class="font-medium">${escapeHtml(value)}</span></li>`;
+                        }).join('')
+                        : '<li>Aucune donnée</li>';
+
+                    return `
+                        <div class="p-4 bg-white" data-report-id="${report.id}">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p class="font-semibold text-sm text-gray-700">${reportDateSafe}</p>
+                                    <p class="text-xs text-gray-500">Soumis par <span class="font-mono">${submitterSafe}</span></p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="edit-report-btn text-xs bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-report-id="${report.id}">Éditer</button>
+                                    <button class="delete-report-btn text-xs btn-danger text-white px-3 py-1 rounded-lg hover:bg-red-600 font-medium" data-report-id="${report.id}">Supprimer</button>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-md mt-3 text-sm text-gray-700">
+                                <h4 class="font-semibold mb-2">Données soumises</h4>
+                                <ul class="list-disc list-inside space-y-1">${dataHtml}</ul>
+                            </div>
+                        </div>
+                    `;
                 }).join('');
 
                 return `
-                    <div class="py-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <div>
-                                <span class="font-bold text-lg text-primary">${storeName}</span>
-                                <span class="text-sm text-gray-500 ml-2">(Appareil ID: ${report.equipmentId.substring(0, 5)}...)</span>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden" data-report-store-id="${group.storeId}">
+                        <div class="bg-gray-50 p-4 border-b border-gray-200">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <button type="button" class="report-store-toggle flex-1 text-left" data-store-id="${group.storeId}">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 class="text-lg font-bold text-primary">${storeNameSafe}</h3>
+                                            ${storeCode ? `<p class="text-sm text-gray-500">Code: ${storeCodeSafe}</p>` : ''}
+                                        </div>
+                                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                                            <span>${group.reports.length} rapport(s)</span>
+                                            <span class="text-xl font-bold text-secondary">${toggleIcon}</span>
+                                        </div>
+                                    </div>
+                                </button>
                             </div>
-                            <span class="text-sm text-gray-500">${reportDate}</span>
                         </div>
-                        <p class="text-sm text-gray-600 mb-2">Soumis par: <span class="font-mono text-xs">${report.userEmail || report.userId}</span></p>
-                        <div class="bg-gray-50 p-3 rounded-md text-sm">
-                            <h4 class="font-semibold mb-1">Données soumises:</h4>
-                            <ul class="list-disc list-inside space-y-1">
-                                ${dataHtml}
-                            </ul>
+                        <div class="${wrapperClasses}" data-report-store="${group.storeId}">
+                            ${reportsHtml}
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        async function handleReportsListClick(e) {
+            const toggleBtn = e.target.closest('.report-store-toggle');
+            if (toggleBtn) {
+                const storeId = toggleBtn.dataset.storeId;
+                if (openReportStoreIds.has(storeId)) {
+                    openReportStoreIds.delete(storeId);
+                } else {
+                    openReportStoreIds.add(storeId);
+                }
+                renderReportsList();
+                return;
+            }
+
+            const target = e.target;
+            if (!isAuthReady) return;
+
+            if (target.classList.contains('edit-report-btn')) {
+                const reportId = target.dataset.reportId;
+                openEditReportModal(reportId);
+                return;
+            }
+
+            if (target.classList.contains('delete-report-btn')) {
+                const reportId = target.dataset.reportId;
+
+                showConfirmationModal(
+                    'Supprimer ce rapport ?',
+                    'Le rapport sera supprimé définitivement.',
+                    async () => {
+                        try {
+                            const reportRef = doc(reportsCollection, reportId);
+                            const snapshot = await getDoc(reportRef);
+                            if (!snapshot.exists()) {
+                                showMessage('Rapport introuvable.', 'error');
+                                return;
+                            }
+                            const reportData = snapshot.data();
+
+                            await deleteDoc(reportRef);
+
+                            showMessage('Rapport supprimé.', 'success', {
+                                actionLabel: 'Annuler',
+                                duration: 5000,
+                                onAction: async () => {
+                                    await setDoc(reportRef, reportData);
+                                    showMessage('Suppression annulée.', 'success');
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Erreur suppression rapport:', error);
+                            showMessage('Erreur lors de la suppression.', 'error');
+                        }
+                    }
+                );
+            }
+        }
+
+        function openEditReportModal(reportId) {
+            const report = allReports.find(r => r.id === reportId);
+            if (!report) {
+                showMessage('Rapport introuvable.', 'error');
+                return;
+            }
+
+            const fieldsContainer = getEl('edit-report-fields');
+            fieldsContainer.innerHTML = '';
+
+            const entries = Object.entries(report.data || {});
+            if (entries.length === 0) {
+                fieldsContainer.innerHTML = '<p class="text-sm text-gray-500">Aucune donnée à modifier.</p>';
+            } else {
+                entries.forEach(([key, value]) => {
+                    const isArray = Array.isArray(value);
+                    const currentValue = isArray ? value.join('\n') : String(value ?? '');
+                    const rows = Math.max(2, currentValue.split('\n').length);
+                    const keySafe = escapeHtml(key);
+                    const safeValue = escapeHtml(currentValue);
+                    fieldsContainer.insertAdjacentHTML('beforeend', `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${keySafe}</label>
+                            <textarea class="form-field" data-key="${escapeHtml(key)}" data-type="${isArray ? 'array' : 'string'}" rows="${rows}">${safeValue}</textarea>
+                        </div>
+                    `);
+                });
+            }
+
+            getEl('edit-report-id').value = report.id;
+            getEl('edit-report-modal').classList.remove('hidden');
+        }
+
+        async function handleEditReportSubmit(e) {
+            e.preventDefault();
+            if (!isAuthReady) return;
+
+            const reportId = getEl('edit-report-id').value;
+            const reportRef = doc(reportsCollection, reportId);
+
+            const fields = Array.from(document.querySelectorAll('#edit-report-fields textarea'));
+            const updatedData = {};
+
+            if (fields.length === 0) {
+                closeModal(getEl('edit-report-modal'));
+                showMessage('Aucune donnée à mettre à jour pour ce rapport.', 'success');
+                return;
+            }
+
+            fields.forEach(field => {
+                const key = field.dataset.key;
+                const type = field.dataset.type;
+                const value = field.value.trim();
+
+                if (type === 'array') {
+                    updatedData[key] = value ? value.split('\n').map(v => v.trim()).filter(v => v.length > 0) : [];
+                } else {
+                    updatedData[key] = value;
+                }
+            });
+
+            try {
+                await updateDoc(reportRef, { data: updatedData });
+                closeModal(getEl('edit-report-modal'));
+                showMessage('Rapport mis à jour.', 'success');
+            } catch (error) {
+                console.error('Erreur mise à jour rapport:', error);
+                showMessage('Erreur lors de la mise à jour du rapport.', 'error');
+            }
         }
         
         // Rendu de la liste des utilisateurs (Admin)
@@ -1425,6 +1714,14 @@
             getEl('add-store-form').addEventListener('submit', handleAddStore);
             getEl('add-equipment-form').addEventListener('submit', handleAddEquipment);
 
+            const storeSearchInput = getEl('store-search-input');
+            if (storeSearchInput) {
+                storeSearchInput.addEventListener('input', (e) => {
+                    storeSearchTerm = e.target.value;
+                    renderStoresList();
+                });
+            }
+
             // Clics sur la liste (délégation d'événements)
             getEl('stores-list').addEventListener('click', handleStoresListClick);
             // NOUVEAU: Écouteur pour les checkboxes
@@ -1502,7 +1799,28 @@
         
         // Groupe: Page Rapports
         function setupReportEventListeners() {
-            getEl('report-filter-store').addEventListener('change', renderReportsList);
+            const filterSelect = getEl('report-filter-store');
+            if (filterSelect) {
+                filterSelect.addEventListener('change', renderReportsList);
+            }
+
+            const searchInput = getEl('report-search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    reportSearchTerm = e.target.value;
+                    renderReportsList();
+                });
+            }
+
+            const reportsList = getEl('reports-list');
+            if (reportsList) {
+                reportsList.addEventListener('click', handleReportsListClick);
+            }
+
+            const editReportForm = getEl('edit-report-form');
+            if (editReportForm) {
+                editReportForm.addEventListener('submit', handleEditReportSubmit);
+            }
         }
         
         // Groupe: Modales
@@ -1510,36 +1828,71 @@
             // Boutons de fermeture génériques
             document.querySelectorAll('.modal-close-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    e.target.closest('.fixed').classList.add('hidden');
+                    closeModal(e.target.closest('.fixed'));
                 });
             });
-            
+
             // Modale QR Code
             getEl('qr-size-select').addEventListener('change', () => {
-                 // Si on change la taille, on regénère le QR simple (s'il y a des données)
-                 const simpleData = JSON.parse(getEl('qr-modal-content').dataset.simpleData || 'null');
+                 const modalContent = getEl('qr-modal-content');
+                 const simpleRaw = modalContent.dataset.simpleData || '';
+                 const simpleData = simpleRaw ? JSON.parse(simpleRaw) : null;
                  if (simpleData) {
                     generateSingleQrCode(simpleData.data, simpleData.equipName, simpleData.storeName);
+                 } else if (currentBulkQrData && currentBulkQrData.length > 0) {
+                    renderBulkQrCodes();
                  }
             });
             getEl('close-qr-modal').addEventListener('click', () => {
-                 getEl('qr-modal').classList.add('hidden');
-                 getEl('qr-modal-content').dataset.simpleData = null; // Nettoyer
+                 closeModal(getEl('qr-modal'));
             });
             getEl('print-qr-btn').addEventListener('click', () => window.print());
-            
+
+            const messageActionBtn = getEl('message-action-btn');
+            if (messageActionBtn) {
+                messageActionBtn.addEventListener('click', async () => {
+                    if (typeof messageActionHandler === 'function') {
+                        const handler = messageActionHandler;
+                        messageActionHandler = null;
+                        hideMessageModal();
+                        try {
+                            await handler();
+                        } catch (error) {
+                            console.error('Erreur lors de l\'action du message:', error);
+                            showMessage('Impossible d\'annuler cette action.', 'error');
+                        }
+                    }
+                });
+            }
+
             // Modale de Confirmation
             getEl('confirm-action-btn').addEventListener('click', () => {
                 if (typeof _confirmCallback === 'function') {
                     _confirmCallback();
                 }
                 _confirmCallback = null;
-                getEl('confirm-modal').classList.add('hidden');
+                closeModal(getEl('confirm-modal'));
             });
             getEl('confirm-cancel-btn').addEventListener('click', () => {
                 _confirmCallback = null;
-                getEl('confirm-modal').classList.add('hidden');
+                closeModal(getEl('confirm-modal'));
             });
+        }
+
+        function closeModal(modalEl) {
+            if (!modalEl) return;
+            modalEl.classList.add('hidden');
+
+            if (modalEl.id === 'qr-modal') {
+                const content = getEl('qr-modal-content');
+                if (content) content.dataset.simpleData = '';
+                currentBulkQrData = [];
+            }
+
+            if (modalEl.id === 'edit-report-modal') {
+                getEl('edit-report-fields').innerHTML = '';
+                getEl('edit-report-id').value = '';
+            }
         }
 
         // --- REFACTOR: Logique Métier (Handlers d'événements) ---
@@ -1647,6 +2000,18 @@
             const target = e.target;
             if (!isAuthReady) return;
 
+            const toggleBtn = target.closest('.store-toggle');
+            if (toggleBtn) {
+                const storeId = toggleBtn.dataset.storeId;
+                if (openStoreIds.has(storeId)) {
+                    openStoreIds.delete(storeId);
+                } else {
+                    openStoreIds.add(storeId);
+                }
+                renderStoresList();
+                return;
+            }
+
             // --- Modifier Magasin ---
             if (target.classList.contains('edit-store-btn')) {
                 const storeId = target.dataset.storeId;
@@ -1669,15 +2034,44 @@
                         "Cela supprimera le magasin ET tous les appareils associés.",
                         async () => {
                             try {
+                                const storeRef = doc(storesCollection, storeId);
+                                const storeSnapshot = await getDoc(storeRef);
+                                if (!storeSnapshot.exists()) {
+                                    showMessage('Magasin introuvable.', 'error');
+                                    return;
+                                }
+
+                                const storeData = storeSnapshot.data();
                                 const q = query(equipmentCollection, where("storeId", "==", storeId));
                                 const querySnapshot = await getDocs(q);
-                                
+
+                                const equipmentData = querySnapshot.docs.map(docSnap => ({
+                                    id: docSnap.id,
+                                    data: docSnap.data()
+                                }));
+
                                 const batch = writeBatch(db);
-                                querySnapshot.forEach((doc) => batch.delete(doc.ref));
-                                batch.delete(doc(storesCollection, storeId));
+                                querySnapshot.forEach(docSnap => batch.delete(docSnap.ref));
+                                batch.delete(storeRef);
                                 await batch.commit();
-                                
-                                showMessage("Magasin et appareils supprimés.", "success");
+
+                                openStoreIds.delete(storeId);
+                                equipmentData.forEach(item => selectedEquipmentIds.delete(item.id));
+                                updateBulkActionBar();
+
+                                showMessage("Magasin et appareils supprimés.", "success", {
+                                    actionLabel: 'Annuler',
+                                    duration: 5000,
+                                    onAction: async () => {
+                                        const restoreBatch = writeBatch(db);
+                                        restoreBatch.set(storeRef, storeData);
+                                        equipmentData.forEach(item => {
+                                            restoreBatch.set(doc(equipmentCollection, item.id), item.data);
+                                        });
+                                        await restoreBatch.commit();
+                                        showMessage('Suppression annulée.', 'success');
+                                    }
+                                });
                             } catch (error) {
                                 console.error("Erreur suppression magasin:", error);
                                 showMessage("Erreur lors de la suppression.", "error");
@@ -1709,8 +2103,28 @@
                         "L'appareil sera supprimé de ce magasin.",
                         async () => {
                             try {
-                                await deleteDoc(doc(equipmentCollection, equipId));
-                                showMessage("Appareil supprimé.", "success");
+                                const equipRef = doc(equipmentCollection, equipId);
+                                const snapshot = await getDoc(equipRef);
+                                if (!snapshot.exists()) {
+                                    showMessage('Appareil introuvable.', 'error');
+                                    return;
+                                }
+
+                                const equipData = snapshot.data();
+
+                                await deleteDoc(equipRef);
+
+                                selectedEquipmentIds.delete(equipId);
+                                updateBulkActionBar();
+
+                                showMessage("Appareil supprimé.", "success", {
+                                    actionLabel: 'Annuler',
+                                    duration: 5000,
+                                    onAction: async () => {
+                                        await setDoc(equipRef, equipData);
+                                        showMessage('Suppression annulée.', 'success');
+                                    }
+                                });
                             } catch (error) {
                                 console.error("Erreur suppression appareil:", error);
                                 showMessage("Erreur lors de la suppression.", "error");
@@ -1811,8 +2225,24 @@
                     "Les appareils liés n'auront plus de formulaire (cela peut causer des erreurs).",
                     async () => {
                         try {
-                            await deleteDoc(doc(formsCollection, formId));
-                            showMessage("Formulaire supprimé.", "success");
+                            const formRef = doc(formsCollection, formId);
+                            const snapshot = await getDoc(formRef);
+                            if (!snapshot.exists()) {
+                                showMessage('Formulaire introuvable.', 'error');
+                                return;
+                            }
+
+                            const formData = snapshot.data();
+                            await deleteDoc(formRef);
+
+                            showMessage("Formulaire supprimé.", "success", {
+                                actionLabel: 'Annuler',
+                                duration: 5000,
+                                onAction: async () => {
+                                    await setDoc(formRef, formData);
+                                    showMessage('Suppression annulée.', 'success');
+                                }
+                            });
                         } catch (error) {
                             console.error("Erreur suppression formulaire:", error);
                             showMessage("Erreur lors de la suppression.", "error");
@@ -1968,19 +2398,33 @@
             if (e.target.classList.contains('delete-user-btn')) {
                 const userId = e.target.dataset.userId;
                 if (userId === currentUserId) return;
-                
+
                 const userEmail = e.target.closest('.user-row').querySelector('.font-medium').textContent;
-                
+
                 showConfirmationModal(
                     `Supprimer ${userEmail} ?`,
                     "Cela supprime l'enregistrement de l'utilisateur. (Ne supprime pas l'authentification).",
                     async () => {
                         try {
-                            // TODO: La suppression de l'authentification (deleteUser) est une opération
-                            // sensible qui nécessite une re-connexion ou une fonction cloud.
-                            // Pour l'instant, on supprime seulement le document firestore.
-                            await deleteDoc(doc(usersCollection, userId));
-                            showMessage("Utilisateur supprimé de la base de données.", "success");
+                            const userRef = doc(usersCollection, userId);
+                            const snapshot = await getDoc(userRef);
+                            if (!snapshot.exists()) {
+                                showMessage('Utilisateur introuvable.', 'error');
+                                return;
+                            }
+
+                            const userData = snapshot.data();
+
+                            await deleteDoc(userRef);
+
+                            showMessage("Utilisateur supprimé de la base de données.", "success", {
+                                actionLabel: 'Annuler',
+                                duration: 5000,
+                                onAction: async () => {
+                                    await setDoc(userRef, userData);
+                                    showMessage('Suppression annulée.', 'success');
+                                }
+                            });
                         } catch (error) {
                             console.error("Erreur suppression utilisateur:", error);
                             showMessage("Erreur lors de la suppression.", "error");
@@ -2063,8 +2507,24 @@
                     "Assurez-vous qu'aucun appareil n'utilise ce type avant de le supprimer.",
                     async () => {
                         try {
-                            await deleteDoc(doc(equipmentTypesCollection, typeId));
-                            showMessage("Type supprimé.", "success");
+                            const typeRef = doc(equipmentTypesCollection, typeId);
+                            const snapshot = await getDoc(typeRef);
+                            if (!snapshot.exists()) {
+                                showMessage('Type introuvable.', 'error');
+                                return;
+                            }
+
+                            const typeData = snapshot.data();
+                            await deleteDoc(typeRef);
+
+                            showMessage("Type supprimé.", "success", {
+                                actionLabel: 'Annuler',
+                                duration: 5000,
+                                onAction: async () => {
+                                    await setDoc(typeRef, typeData);
+                                    showMessage('Suppression annulée.', 'success');
+                                }
+                            });
                         } catch (error) {
                             console.error("Erreur suppression type:", error);
                             showMessage("Erreur lors de la suppression.", "error");
@@ -2132,57 +2592,67 @@
 
         // Gère le clic sur "Imprimer QR" (Masse)
         function handleBulkPrintClick() {
-            const modalContent = getEl('qr-modal-content');
-            modalContent.innerHTML = ''; // Vider
-            
-            // Cacher les contrôles du simple
-            getEl('qr-size-select-wrapper').classList.add('hidden');
-            getEl('qr-modal-subtitle').classList.add('hidden');
-            getEl('qr-modal-title').textContent = `Impression de ${selectedEquipmentIds.size} QR Code(s)`;
-
-            // Créer une grille
-            modalContent.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 p-2';
-
-            const qrCodeDivIds = [];
-            
-            selectedEquipmentIds.forEach(id => {
+            const bulkItems = Array.from(selectedEquipmentIds).map(id => {
                 const equip = allEquipment.find(e => e.id === id);
-                if (!equip) return;
-                
+                if (!equip) return null;
                 const store = allStores.find(s => s.id === equip.storeId);
-                const storeName = store ? store.name : 'Magasin inconnu';
-                const equipName = equip.name;
-                const qrDivId = `qr-bulk-${id}`;
-                
-                // Stocker les données pour l'instanciation
-                const qrData = JSON.stringify({
+                return {
                     equipmentId: equip.id,
                     storeId: equip.storeId,
-                    formId: equip.formId
-                });
-                qrCodeDivIds.push({ id: qrDivId, data: qrData });
-                
-                // Ajouter le HTML pour la carte
-                const itemHtml = `
+                    formId: equip.formId,
+                    equipName: equip.name || 'Appareil',
+                    storeName: store ? (store.name || 'Magasin') : 'Magasin inconnu'
+                };
+            }).filter(Boolean);
+
+            if (bulkItems.length === 0) {
+                showMessage('Sélectionnez au moins un appareil avant d\'imprimer.', 'error');
+                return;
+            }
+
+            currentBulkQrData = bulkItems;
+            getEl('qr-modal-content').dataset.simpleData = '';
+            renderBulkQrCodes();
+        }
+
+        function renderBulkQrCodes() {
+            if (!currentBulkQrData || currentBulkQrData.length === 0) return;
+
+            const modalContent = getEl('qr-modal-content');
+            const size = parseInt(getEl('qr-size-select').value, 10) || 256;
+
+            modalContent.innerHTML = '';
+            modalContent.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-2';
+
+            getEl('qr-modal-title').textContent = `Impression de ${currentBulkQrData.length} QR Code(s)`;
+            getEl('qr-modal-subtitle').classList.add('hidden');
+            getEl('qr-size-select-wrapper').classList.remove('hidden');
+
+            currentBulkQrData.forEach(item => {
+                const qrDivId = `qr-bulk-${item.equipmentId}`;
+                const equipNameSafe = escapeHtml(item.equipName);
+                const storeNameSafe = escapeHtml(item.storeName);
+                const cardHtml = `
                     <div class="qr-grid-item text-center p-4 border rounded-lg break-inside-avoid">
-                        <h4 class="text-xl font-bold mb-2">${equipName}</h4>
-                        <p class="text-sm text-gray-600 mb-3">${storeName}</p>
+                        <h4 class="text-xl font-bold mb-2">${equipNameSafe}</h4>
+                        <p class="text-sm text-gray-600 mb-3">${storeNameSafe}</p>
                         <div id="${qrDivId}" class="flex justify-center"></div>
                     </div>
                 `;
-                modalContent.insertAdjacentHTML('beforeend', itemHtml);
-            });
-            
-            // Instancier les QR Codes *après* que le HTML soit dans le DOM
-            requestAnimationFrame(() => {
-                qrCodeDivIds.forEach(item => {
-                    new QRCode(document.getElementById(item.id), {
-                        text: item.data,
-                        width: 128, // Taille fixe pour l'impression en grille
-                        height: 128,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.H
+                modalContent.insertAdjacentHTML('beforeend', cardHtml);
+
+                requestAnimationFrame(() => {
+                    new QRCode(document.getElementById(qrDivId), {
+                        text: JSON.stringify({
+                            equipmentId: item.equipmentId,
+                            storeId: item.storeId,
+                            formId: item.formId
+                        }),
+                        width: size,
+                        height: size,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.H
                     });
                 });
             });
@@ -2199,14 +2669,30 @@
                 async () => {
                     if (!isAuthReady) return;
                     try {
+                        const docRefs = Array.from(selectedEquipmentIds).map(id => doc(equipmentCollection, id));
+                        const snapshots = await Promise.all(docRefs.map(ref => getDoc(ref)));
+
+                        const equipmentData = snapshots.filter(snap => snap.exists()).map(snap => ({
+                            ref: snap.ref,
+                            data: snap.data()
+                        }));
+
                         const batch = writeBatch(db);
-                        selectedEquipmentIds.forEach(id => {
-                            batch.delete(doc(equipmentCollection, id));
-                        });
+                        equipmentData.forEach(item => batch.delete(item.ref));
                         await batch.commit();
-                        
-                        showMessage(`${count} appareil(s) supprimé(s).`, "success");
-                        handleDeselectAll(); // Vider la sélection
+
+                        handleDeselectAll();
+
+                        showMessage(`${count} appareil(s) supprimé(s).`, "success", {
+                            actionLabel: 'Annuler',
+                            duration: 5000,
+                            onAction: async () => {
+                                const restoreBatch = writeBatch(db);
+                                equipmentData.forEach(item => restoreBatch.set(item.ref, item.data));
+                                await restoreBatch.commit();
+                                showMessage('Suppression annulée.', 'success');
+                            }
+                        });
                     } catch (error) {
                         console.error("Erreur suppression de masse:", error);
                         showMessage("Erreur lors de la suppression.", "error");
@@ -2462,10 +2948,11 @@
 
             qrContainer.innerHTML = ''; // Nettoyer l'ancien
             qrContainer.className = 'flex justify-center flex-col items-center'; // Classe par défaut
-            
+
             // Stocker les données pour le redimensionnement
             qrContainer.dataset.simpleData = JSON.stringify({ data, equipName, storeName });
-            
+            currentBulkQrData = [];
+
             // Afficher les contrôles du simple
             getEl('qr-size-select-wrapper').classList.remove('hidden');
             getEl('qr-modal-subtitle').classList.remove('hidden');
@@ -2499,28 +2986,65 @@
             getEl('confirm-modal').classList.remove('hidden');
         }
 
-        function showMessage(message, type = 'error') {
+        function showMessage(message, type = 'error', options = {}) {
             const modal = getEl('message-modal');
             const text = getEl('message-text');
+            const actionBtn = getEl('message-action-btn');
             if (!modal || !text) return;
-            
+
+            if (messageTimeoutId) {
+                clearTimeout(messageTimeoutId);
+                messageTimeoutId = null;
+            }
+
             text.textContent = message;
-            
+
             if (type === 'success') {
                 modal.classList.remove('bg-red-600');
                 modal.classList.add('bg-green-600');
-            } else { // 'error' ou 'danger'
+            } else {
                 modal.classList.add('bg-red-600');
                 modal.classList.remove('bg-green-600');
             }
-            
+
+            if (actionBtn) {
+                actionBtn.classList.add('hidden');
+            }
+            messageActionHandler = null;
+
+            if (actionBtn && options && options.actionLabel && typeof options.onAction === 'function') {
+                actionBtn.textContent = options.actionLabel;
+                actionBtn.classList.remove('hidden');
+                messageActionHandler = options.onAction;
+            }
+
             modal.classList.remove('hidden');
             modal.classList.add('opacity-100');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('opacity-100');
-            }, 3000);
+
+            const duration = options && options.duration ? options.duration : 3000;
+            messageTimeoutId = setTimeout(() => {
+                hideMessageModal();
+            }, duration);
+        }
+
+        function hideMessageModal() {
+            const modal = getEl('message-modal');
+            const actionBtn = getEl('message-action-btn');
+            if (!modal) return;
+
+            modal.classList.add('hidden');
+            modal.classList.remove('opacity-100');
+
+            if (actionBtn) {
+                actionBtn.classList.add('hidden');
+            }
+
+            if (messageTimeoutId) {
+                clearTimeout(messageTimeoutId);
+                messageTimeoutId = null;
+            }
+
+            messageActionHandler = null;
         }
         
         // --- Navigation et Utilitaires ---
