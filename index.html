@@ -18,6 +18,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #F3F4F6;
         }
         
         /* Définition des couleurs personnalisées */
@@ -25,6 +26,28 @@
             --color-primary: #00594E; /* Vert foncé */
             --color-secondary: #E56A54; /* Corail/Rouge */
             --color-danger: #D9534F; /* Rouge pour suppressions/erreurs */
+        }
+
+        .bg-primary { background-color: var(--color-primary); }
+        .bg-secondary { background-color: var(--color-secondary); }
+        .bg-soft { background-color: #FFFFFF; }
+
+        .text-primary { color: var(--color-primary); }
+        .text-primary-dark { color: #004238; }
+        .text-secondary { color: var(--color-secondary); }
+        .text-danger { color: var(--color-danger); }
+
+        .card {
+            background-color: #FFFFFF;
+            border-radius: 1rem;
+            box-shadow: 0 15px 45px -20px rgba(0, 89, 78, 0.35);
+            border: 1px solid rgba(0, 89, 78, 0.08);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-primary);
         }
 
         /* Style pour le lecteur QR */
@@ -118,33 +141,42 @@
         
         /* Style des onglets de navigation (CSS standard) */
         .nav-tab {
-            padding-top: 0.75rem; /* py-3 */
-            padding-bottom: 0.75rem; /* py-3 */
-            padding-left: 0.5rem; /* px-2 */
-            padding-right: 0.5rem; /* px-2 */
-            border-bottom-width: 2px;
-            font-weight: 500; /* font-medium */
-            font-size: 0.875rem; /* text-sm */
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            white-space: nowrap;
         }
         .nav-tab-active {
-            border-color: var(--color-secondary);
-            color: var(--color-secondary);
+            background-color: var(--color-primary);
+            color: white;
+            border-color: rgba(0, 89, 78, 0.4);
         }
         .nav-tab-inactive {
-            border-color: transparent; /* border-transparent */
-            color: #6B7280; /* text-gray-500 */
+            background-color: rgba(229, 106, 84, 0.08);
+            color: var(--color-primary);
+            border-color: rgba(229, 106, 84, 0.2);
         }
         .nav-tab-inactive:hover {
-            color: #374151; /* hover:text-gray-700 */
-            border-color: #D1D5DB; /* hover:border-gray-300 */
+            background-color: rgba(229, 106, 84, 0.2);
+            color: var(--color-primary);
         }
         
-        /* Couleurs de texte personnalisées */
-        .text-primary { color: var(--color-primary); }
-        .text-primary-dark { color: #004238; }
-        .text-secondary { color: var(--color-secondary); }
-        .text-danger { color: var(--color-danger); }
-        
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            border-radius: 9999px;
+            padding: 0.125rem 0.625rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
         /* Styles pour l'impression */
         @media print {
             body * {
@@ -180,28 +212,49 @@
                 display: none !important;
             }
         }
+
+        @media (max-width: 640px) {
+            #main-header nav {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+
+            #main-nav-container {
+                padding-bottom: 0.75rem;
+            }
+
+            #main-nav-container .nav-tab {
+                flex: 1;
+                text-align: center;
+            }
+        }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="min-h-screen">
 
     <!-- En-tête -->
-    <header id="main-header" class="bg-white shadow-md hidden">
-        <nav class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-primary">Gest'Appareils</h1>
-            <div class="flex items-center space-x-4">
-                <span id="user-email-display" class="text-sm text-gray-600 hidden"></span>
-                <span id="user-role-display" class="text-xs font-semibold uppercase px-2 py-0.5 rounded-full hidden"></span>
-                <button id="auth-button" class="btn btn-gray text-sm py-1 px-3">Déconnexion</button>
+    <header id="main-header" class="bg-primary text-white shadow-md hidden">
+        <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3">
+                <h1 class="text-2xl font-bold tracking-tight">Gest'Appareils</h1>
+                <p class="text-sm text-white/80">Gestion &amp; maintenance simplifiée</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span id="user-name-display" class="text-sm font-semibold hidden"></span>
+                <span id="user-email-display" class="text-xs text-white/80 hidden"></span>
+                <span id="user-role-display" class="badge bg-white/10 text-white hidden"></span>
+                <button id="auth-button" class="btn btn-secondary text-sm py-1 px-4 shadow-none">Déconnexion</button>
             </div>
         </nav>
     </header>
 
     <!-- Navigation principale (Onglets) -->
-    <div id="main-nav" class="bg-white shadow-sm sticky top-0 z-10 hidden">
-        <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex space-x-4">
+    <div id="main-nav" class="bg-white/90 backdrop-blur border-b border-primary/10 sticky top-0 z-20 hidden">
+        <div id="main-nav-container" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-3 overflow-x-auto">
             <!-- Onglets pour tous -->
             <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
-            
+
             <!-- Onglets Admin seulement -->
             <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
             <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
@@ -211,10 +264,10 @@
     </div>
 
     <!-- Conteneur principal des pages -->
-    <main id="page-container" class="container mx-auto p-4 sm:p-6 lg:p-8">
+    <main id="page-container" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
 
         <!-- ================= PAGE 0: CONNEXION / INSCRIPTION ================= -->
-        <div id="page-login" class="page max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <div id="page-login" class="page max-w-md mx-auto card p-8">
             
             <!-- Formulaire de Connexion -->
             <form id="login-form">
@@ -256,16 +309,46 @@
         </div>
 
         <!-- ================= PAGE 0.5: EN ATTENTE D'APPROBATION ================= -->
-        <div id="page-pending-approval" class="page hidden max-w-lg mx-auto bg-white p-8 rounded-lg shadow-lg text-center">
+        <div id="page-pending-approval" class="page hidden max-w-lg mx-auto card p-8 text-center">
             <h2 class="text-2xl font-bold text-primary-dark mb-4">Compte en attente</h2>
             <p class="text-gray-700 mb-6">Merci pour votre inscription ! Votre compte est en attente d'approbation par un administrateur. Vous serez notifié par email lorsque votre compte sera activé.</p>
             <p class="text-sm text-gray-500">Vous pouvez fermer cette page en attendant.</p>
         </div>
 
+        <!-- ================= PAGE 0.75: PREMIÈRE CONNEXION ================= -->
+        <div id="page-password-reset" class="page hidden max-w-lg mx-auto card p-8 space-y-6">
+            <div class="text-center space-y-2">
+                <h2 class="text-2xl font-bold text-primary-dark">Bienvenue !</h2>
+                <p class="text-gray-600">C'est votre première connexion sur Gest'Appareils. Merci de personnaliser votre profil et de définir un nouveau mot de passe.</p>
+                <p class="text-sm text-gray-500">Connecté en tant que <span id="force-reset-email" class="font-semibold text-primary"></span></p>
+            </div>
+            <form id="force-password-form" class="space-y-4">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="force-first-name" class="block text-sm font-medium text-gray-700">Prénom</label>
+                        <input type="text" id="force-first-name" class="form-field" placeholder="ex: Léa" required>
+                    </div>
+                    <div>
+                        <label for="force-last-name" class="block text-sm font-medium text-gray-700">Nom</label>
+                        <input type="text" id="force-last-name" class="form-field" placeholder="ex: Martin" required>
+                    </div>
+                </div>
+                <div>
+                    <label for="force-password" class="block text-sm font-medium text-gray-700">Nouveau mot de passe</label>
+                    <input type="password" id="force-password" class="form-field" minlength="6" required>
+                </div>
+                <div>
+                    <label for="force-password-confirm" class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
+                    <input type="password" id="force-password-confirm" class="form-field" minlength="6" required>
+                </div>
+                <button type="submit" class="w-full btn btn-primary">Enregistrer et continuer</button>
+            </form>
+        </div>
+
 
         <!-- ================= PAGE 1: SCANNER ================= -->
         <div id="page-scanner" class="page hidden"> <!-- Page par défaut après connexion -->
-            <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto">
+            <div class="card p-6 max-w-lg mx-auto space-y-4">
                 <h2 class="text-xl font-bold mb-4 text-center text-primary-dark">Scanner un QR Code</h2>
                 <button id="start-scan-btn" class="w-full btn btn-primary py-3">
                     Démarrer le Scan
@@ -279,7 +362,7 @@
 
         <!-- ================= PAGE 2: FORMULAIRE D'INTERVENTION ================= -->
         <div id="page-intervention-form" class="page hidden">
-            <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto">
+            <div class="card p-6 max-w-lg mx-auto space-y-4">
                 <button id="back-to-scanner" class="text-secondary hover:underline mb-4">&larr; Retour au scanner</button>
                 <h2 id="form-title" class="text-2xl font-bold mb-2 text-primary-dark">Rapport d'intervention</h2>
                 <p id="form-subtitle" class="text-gray-600 mb-6">Veuillez remplir les champs ci-dessous.</p>
@@ -307,7 +390,7 @@
                 <!-- Colonne 1: Ajouter Magasin / Appareil -->
                 <div class="lg:col-span-1 space-y-6">
                     <!-- Ajouter un magasin -->
-                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="card p-6 space-y-4">
                         <h2 class="text-xl font-bold mb-4 text-primary-dark">Ajouter un Magasin</h2>
                         <form id="add-store-form">
                             <div class="mb-4">
@@ -325,7 +408,7 @@
                     </div>
 
                     <!-- Ajouter un appareil -->
-                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="card p-6 space-y-4">
                         <h2 class="text-xl font-bold mb-4 text-primary-dark">Ajouter un Appareil</h2>
                         <form id="add-equipment-form">
                             <div class="mb-4">
@@ -360,7 +443,7 @@
                 </div>
 
                 <!-- Colonne 2: Liste des Magasins et Appareils -->
-                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+                <div class="lg:col-span-2 card p-6 space-y-4">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
                         <h2 class="text-xl font-bold text-primary-dark">Vos Magasins et Appareils</h2>
                         <div class="w-full sm:w-72">
@@ -395,7 +478,7 @@
         <div id="page-forms" class="page hidden">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Colonne 1: Créateur de formulaire -->
-                <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg h-fit">
+                <div class="lg:col-span-1 card p-6 h-fit">
                     <h2 class="text-xl font-bold mb-4 text-primary-dark">Créer/Modifier un Formulaire</h2>
                     <form id="create-form-builder">
                         <input type="hidden" id="form-builder-id">
@@ -422,7 +505,7 @@
                 </div>
 
                 <!-- Colonne 2: Liste des formulaires existants -->
-                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+                <div class="lg:col-span-2 card p-6 space-y-4">
                     <h2 class="text-xl font-bold mb-4 text-primary-dark">Formulaires Existants</h2>
                     <div id="forms-list" class="space-y-4">
                         <!-- Contenu généré par JS -->
@@ -434,7 +517,7 @@
 
         <!-- ================= PAGE 5: RAPPORTS (Stats) ================= -->
         <div id="page-reports" class="page hidden">
-            <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="card p-6 space-y-4">
                 <h2 class="text-2xl font-bold mb-6 text-primary-dark">Rapports d'Intervention</h2>
 
                 <!-- Filtres -->
@@ -465,15 +548,49 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 <!-- Colonne 1: Gestion des Utilisateurs -->
-                <div class="bg-white p-6 rounded-lg shadow-lg h-fit">
-                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Gestion des Utilisateurs</h2>
-                    <div id="users-list" class="space-y-3">
-                        <!-- Liste des utilisateurs chargée par JS -->
+                <div class="space-y-6">
+                    <div class="card p-6 h-fit space-y-4">
+                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Créer un utilisateur</h2>
+                        <form id="create-user-form" class="space-y-4">
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label for="create-user-first-name" class="block text-sm font-medium text-gray-700">Prénom</label>
+                                    <input type="text" id="create-user-first-name" class="form-field" placeholder="ex: Léa" required>
+                                </div>
+                                <div>
+                                    <label for="create-user-last-name" class="block text-sm font-medium text-gray-700">Nom</label>
+                                    <input type="text" id="create-user-last-name" class="form-field" placeholder="ex: Martin" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="create-user-email" class="block text-sm font-medium text-gray-700">Email professionnel</label>
+                                <input type="email" id="create-user-email" class="form-field" placeholder="nom@entreprise.fr" required>
+                            </div>
+                            <div>
+                                <label for="create-user-password" class="block text-sm font-medium text-gray-700">Mot de passe provisoire</label>
+                                <input type="password" id="create-user-password" class="form-field" minlength="6" required>
+                                <p class="text-xs text-gray-500 mt-1">L'utilisateur devra le remplacer lors de sa première connexion.</p>
+                            </div>
+                            <div>
+                                <label for="create-user-role" class="block text-sm font-medium text-gray-700">Rôle initial</label>
+                                <select id="create-user-role" class="form-field custom-select">
+                                    <option value="user" selected>Utilisateur</option>
+                                    <option value="admin">Administrateur</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full btn btn-primary">Créer et envoyer les accès</button>
+                        </form>
+                    </div>
+                    <div class="card p-6 h-fit space-y-4">
+                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Utilisateurs enregistrés</h2>
+                        <div id="users-list" class="space-y-3">
+                            <!-- Liste des utilisateurs chargée par JS -->
+                        </div>
                     </div>
                 </div>
 
                 <!-- Colonne 2: Gestion des Types d'Appareils -->
-                <div class="bg-white p-6 rounded-lg shadow-lg h-fit">
+                <div class="card p-6 h-fit space-y-4">
                     <h2 class="text-xl font-bold mb-4 text-primary-dark">Gestion des Types d'Appareils</h2>
                     
                     <!-- Onglets Ajout -->
@@ -705,12 +822,13 @@
         // Importation des modules Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
-            getAuth, 
-            onAuthStateChanged, 
+            getAuth,
+            onAuthStateChanged,
             signOut,
             createUserWithEmailAndPassword,
             signInWithEmailAndPassword,
-            deleteUser
+            deleteUser,
+            updatePassword
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, 
@@ -756,8 +874,11 @@
 
         // --- Variables Globales ---
         let app, auth, db, storage;
+        let secondaryApp = null;
+        let secondaryAuth = null;
         let currentUserId = null;
         let currentUserRole = null; // 'admin', 'user', ou 'new'
+        let currentUserProfile = null;
         let isAuthReady = false;
 
         // Collections Firestore
@@ -813,6 +934,24 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function getDisplayName(profile) {
+            if (!profile) return '';
+            return [profile.firstName, profile.lastName]
+                .filter(part => part && part.trim().length > 0)
+                .join(' ')
+                .trim();
+        }
+
+        function getSecondaryAuthInstance() {
+            if (!secondaryApp) {
+                secondaryApp = initializeApp(firebaseConfig, 'secondary');
+            }
+            if (!secondaryAuth) {
+                secondaryAuth = getAuth(secondaryApp);
+            }
+            return secondaryAuth;
+        }
+
         // --- Initialisation ---
 
         function initializeFirebase() {
@@ -820,6 +959,10 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                if (!secondaryApp) {
+                    secondaryApp = initializeApp(firebaseConfig, 'secondary');
+                    secondaryAuth = getAuth(secondaryApp);
+                }
                 // storage = getStorage(app); // Futur
                 setLogLevel('Debug'); // Pour voir les logs Firestore
 
@@ -857,8 +1000,15 @@
                     const userDocSnap = await getDoc(userDocRef);
 
                     if (userDocSnap.exists()) {
-                        currentUserRole = userDocSnap.data().role;
-                        
+                        const userData = userDocSnap.data();
+                        currentUserProfile = { id: user.uid, ...userData };
+                        currentUserRole = userData.role || 'user';
+
+                        if (userData.mustChangePassword) {
+                            showForcePasswordPage(userData, user.email);
+                            return;
+                        }
+
                         // Gérer les rôles
                         if (currentUserRole === 'new') {
                             // Rôle "new" -> Bloquer sur la page d'attente
@@ -867,7 +1017,7 @@
                             // Rôle "user" ou "admin"
                             initializeAppUI(currentUserRole, user.email);
                         }
-                        
+
                     } else {
                         // Cas étrange, l'utilisateur est authentifié mais n'a pas de document
                         console.error("Erreur: Document utilisateur introuvable pour l'UID:", user.uid);
@@ -879,6 +1029,7 @@
                     // L'utilisateur est déconnecté
                     currentUserId = null;
                     currentUserRole = null;
+                    currentUserProfile = null;
                     isAuthReady = false;
                     console.log("Utilisateur déconnecté.");
 
@@ -887,7 +1038,14 @@
                     getEl('main-nav').classList.add('hidden');
                     hideAllPages();
                     getEl('page-login').classList.remove('hidden');
-                    
+
+                    const nameDisplay = getEl('user-name-display');
+                    if (nameDisplay) nameDisplay.classList.add('hidden');
+                    const emailDisplay = getEl('user-email-display');
+                    if (emailDisplay) emailDisplay.classList.add('hidden');
+                    const roleDisplay = getEl('user-role-display');
+                    if (roleDisplay) roleDisplay.classList.add('hidden');
+
                     stopDataListeners(); // Arrêter les écouteurs de données
                 }
             });
@@ -900,6 +1058,29 @@
         }
         
         // Affiche l'UI en fonction du rôle
+        function showForcePasswordPage(userData, email) {
+            hideAllPages();
+            getEl('main-header').classList.add('hidden');
+            getEl('main-nav').classList.add('hidden');
+
+            const emailLabel = getEl('force-reset-email');
+            if (emailLabel) emailLabel.textContent = email || '';
+
+            const firstNameInput = getEl('force-first-name');
+            if (firstNameInput) firstNameInput.value = userData.firstName || '';
+
+            const lastNameInput = getEl('force-last-name');
+            if (lastNameInput) lastNameInput.value = userData.lastName || '';
+
+            const passwordInput = getEl('force-password');
+            if (passwordInput) passwordInput.value = '';
+
+            const confirmInput = getEl('force-password-confirm');
+            if (confirmInput) confirmInput.value = '';
+
+            getEl('page-password-reset').classList.remove('hidden');
+        }
+
         function initializeAppUI(role, email) {
             console.log(`Initialisation de l'UI pour: ${email} (Rôle: ${role})`);
             
@@ -917,19 +1098,30 @@
             // Pour "user" et "admin", afficher l'application
             getEl('main-header').classList.remove('hidden');
             getEl('main-nav').classList.remove('hidden');
-            
+
             // Afficher infos utilisateur
-            getEl('user-email-display').textContent = email;
-            getEl('user-email-display').classList.remove('hidden');
+            const emailDisplay = getEl('user-email-display');
+            if (emailDisplay) {
+                emailDisplay.textContent = email;
+                emailDisplay.classList.remove('hidden');
+            }
+
+            const nameDisplay = getEl('user-name-display');
+            if (nameDisplay) {
+                const displayName = getDisplayName(currentUserProfile);
+                if (displayName) {
+                    nameDisplay.textContent = displayName;
+                    nameDisplay.classList.remove('hidden');
+                } else {
+                    nameDisplay.classList.add('hidden');
+                }
+            }
+
             const roleDisplay = getEl('user-role-display');
-            roleDisplay.textContent = role;
-            roleDisplay.classList.remove('hidden');
-            if (role === 'admin') {
-                roleDisplay.classList.add('bg-blue-100', 'text-blue-800');
-                roleDisplay.classList.remove('bg-gray-100', 'text-gray-800');
-            } else { // 'user'
-                roleDisplay.classList.add('bg-green-100', 'text-green-800');
-                roleDisplay.classList.remove('bg-blue-100', 'text-blue-800');
+            if (roleDisplay) {
+                const roleLabel = role === 'admin' ? 'ADMINISTRATEUR' : (role === 'user' ? 'UTILISATEUR' : 'EN ATTENTE');
+                roleDisplay.textContent = roleLabel;
+                roleDisplay.classList.remove('hidden');
             }
 
             // Gérer la visibilité des onglets et des pages
@@ -1495,51 +1687,113 @@
         function renderUsersList(users) {
             const listContainer = getEl('users-list');
             if (!listContainer) return;
-            
-            listContainer.innerHTML = users
-                .sort((a,b) => a.email.localeCompare(b.email)) // Trier par email
-                .map(user => {
-                const isCurrentUser = user.id === currentUserId;
-                const userFonction = user.fonction || ''; // Gérer si le champ n'existe pas encore
-                
-                let roleSelectHtml = '';
-                if (user.role === 'new') {
-                     roleSelectHtml = `
-                        <option value="new" ${user.role === 'new' ? 'selected' : ''}>Nouveau (En attente)</option>
-                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>Utilisateur</option>
-                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                     `;
-                } else {
-                     roleSelectHtml = `
-                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>Utilisateur</option>
-                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                     `;
+
+            const activeProfile = users.find(u => u.id === currentUserId);
+            if (activeProfile) {
+                currentUserProfile = { ...activeProfile };
+                const nameDisplay = getEl('user-name-display');
+                if (nameDisplay) {
+                    const displayName = getDisplayName(currentUserProfile);
+                    if (displayName) {
+                        nameDisplay.textContent = escapeHtml(displayName);
+                        nameDisplay.classList.remove('hidden');
+                    } else {
+                        nameDisplay.classList.add('hidden');
+                    }
                 }
-                
-                return `
-                <div class="user-row p-3 ${isCurrentUser ? 'bg-blue-50' : (user.role === 'new' ? 'bg-yellow-50' : 'bg-gray-50')} rounded-md space-y-2">
-                    <p class="font-medium text-sm">${user.email}</p>
-                    <div class="flex flex-col sm:flex-row sm:items-end sm:space-x-2 space-y-2 sm:space-y-0">
-                        <div class="flex-1">
-                            <label class="block text-xs font-medium text-gray-500">Fonction</label>
-                            <input type="text" class="form-field text-sm py-1" data-key="fonction" value="${userFonction}" placeholder="ex: Tech, Ingénieur">
+            }
+
+            listContainer.innerHTML = users
+                .sort((a, b) => (a.email || '').localeCompare(b.email || ''))
+                .map(user => {
+                    const isCurrentUser = user.id === currentUserId;
+                    const userIdAttr = escapeHtml(user.id || '');
+                    const email = escapeHtml(user.email || '');
+                    const firstNameValue = escapeHtml(user.firstName || '');
+                    const lastNameValue = escapeHtml(user.lastName || '');
+                    const fonctionValue = escapeHtml(user.fonction || '');
+                    const rawDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+                    const displayName = rawDisplayName ? escapeHtml(rawDisplayName) : '';
+                    const userRole = user.role || 'user';
+
+                    const roleOptions = userRole === 'new'
+                        ? `
+                            <option value="new" ${userRole === 'new' ? 'selected' : ''}>Nouveau (En attente)</option>
+                            <option value="user" ${userRole === 'user' ? 'selected' : ''}>Utilisateur</option>
+                            <option value="admin" ${userRole === 'admin' ? 'selected' : ''}>Administrateur</option>
+                        `
+                        : `
+                            <option value="user" ${userRole === 'user' ? 'selected' : ''}>Utilisateur</option>
+                            <option value="admin" ${userRole === 'admin' ? 'selected' : ''}>Administrateur</option>
+                        `;
+
+                    const statusBadge = user.mustChangePassword
+                        ? '<span class="badge bg-secondary text-white">MDP à changer</span>'
+                        : '<span class="badge bg-emerald-100 text-emerald-800">Actif</span>';
+
+                    const resetButtonLabel = user.mustChangePassword
+                        ? 'Réinitialisation en attente'
+                        : 'Forcer la réinitialisation';
+
+                    const resetButtonDisabled = user.mustChangePassword ? 'disabled' : '';
+
+                    const roleBadge = userRole === 'admin'
+                        ? '<span class="badge bg-primary text-white">Admin</span>'
+                        : (userRole === 'new'
+                            ? '<span class="badge bg-amber-100 text-amber-800">En attente</span>'
+                            : '<span class="badge bg-emerald-100 text-emerald-800">Utilisateur</span>');
+
+                    const baseClasses = ['user-row', 'border', 'border-gray-200', 'rounded-xl', 'p-4', 'space-y-4', 'shadow-sm', 'bg-white'];
+                    if (isCurrentUser) baseClasses.push('border-emerald-400', 'shadow-md');
+                    if (userRole === 'new') baseClasses.push('bg-amber-50');
+                    const rowClass = baseClasses.join(' ');
+
+                    return `
+                        <div class="${rowClass}" data-user-id="${userIdAttr}" data-user-email="${email}">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <div>
+                                    <p class="text-base font-semibold text-primary-dark">${displayName || 'Nom non renseigné'}</p>
+                                    <p class="text-sm text-gray-500">${email}</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    ${statusBadge}
+                                    ${roleBadge}
+                                </div>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">Prénom</label>
+                                    <input type="text" class="form-field text-sm py-2" data-key="firstName" value="${firstNameValue}" ${isCurrentUser ? 'disabled' : ''}>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">Nom</label>
+                                    <input type="text" class="form-field text-sm py-2" data-key="lastName" value="${lastNameValue}" ${isCurrentUser ? 'disabled' : ''}>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">Fonction</label>
+                                    <input type="text" class="form-field text-sm py-2" data-key="fonction" value="${fonctionValue}" placeholder="ex: Technicien" ${isCurrentUser ? 'disabled' : ''}>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500">Rôle</label>
+                                    <select class="form-field custom-select text-sm py-2" data-key="role" ${isCurrentUser ? 'disabled' : ''}>
+                                        ${roleOptions}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button class="save-user-btn btn btn-primary text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : ''}>
+                                    Enregistrer
+                                </button>
+                                <button class="force-reset-btn btn btn-secondary text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : resetButtonDisabled}>
+                                    ${resetButtonLabel}
+                                </button>
+                                <button class="delete-user-btn btn btn-danger text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : ''}>
+                                    Supprimer
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex-1">
-                            <label class="block text-xs font-medium text-gray-500">Rôle</label>
-                            <select class="form-field custom-select text-sm py-1" data-key="role" ${isCurrentUser ? 'disabled' : ''}>
-                                ${roleSelectHtml}
-                            </select>
-                        </div>
-                        <button class="save-user-btn btn btn-primary text-sm py-1" data-user-id="${user.id}" ${isCurrentUser ? 'disabled' : ''}>
-                            OK
-                        </button>
-                        <button class="delete-user-btn btn btn-danger text-sm py-1" data-user-id="${user.id}" ${isCurrentUser ? 'disabled' : ''}>
-                            Suppr.
-                        </button>
-                    </div>
-                </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
         }
         
         // Rendu de la liste des types d'appareils (Admin)
@@ -1696,6 +1950,11 @@
 
             getEl('signup-form').addEventListener('submit', handleSignup);
             getEl('login-form').addEventListener('submit', handleLogin);
+
+            const forcePasswordForm = getEl('force-password-form');
+            if (forcePasswordForm) {
+                forcePasswordForm.addEventListener('submit', handleForcePasswordForm);
+            }
         }
 
         // Groupe: Navigation
@@ -1779,6 +2038,11 @@
         
         // Groupe: Page Admin
         function setupAdminEventListeners() {
+            const createUserForm = getEl('create-user-form');
+            if (createUserForm) {
+                createUserForm.addEventListener('submit', handleCreateUser);
+            }
+
             // Délégation pour la liste des utilisateurs
             getEl('users-list').addEventListener('click', handleUsersListClick);
             
@@ -1917,7 +2181,14 @@
                 await setDoc(doc(usersCollection, user.uid), {
                     email: user.email,
                     role: newRole,
-                    fonction: ""
+                    fonction: "",
+                    firstName: "",
+                    lastName: "",
+                    displayName: "",
+                    mustChangePassword: false,
+                    status: 'pending',
+                    createdAt: new Date(),
+                    createdBy: user.uid
                 });
                 
                 showMessage(`Compte créé avec succès ! Il est en attente d'approbation.`, 'success');
@@ -1936,13 +2207,67 @@
             e.preventDefault();
             const email = getEl('login-email').value;
             const password = getEl('login-password').value;
-            
+
             try {
                 await signInWithEmailAndPassword(auth, email, password);
                 // onAuthStateChanged s'occupe du reste
             } catch (error) {
                 console.error("Erreur de connexion:", error);
                 showMessage("Email ou mot de passe incorrect.", "error");
+            }
+        }
+
+        async function handleForcePasswordForm(e) {
+            e.preventDefault();
+
+            if (!auth.currentUser) {
+                showMessage("Session expirée. Veuillez vous reconnecter.", 'error');
+                return;
+            }
+
+            const firstName = getEl('force-first-name').value.trim();
+            const lastName = getEl('force-last-name').value.trim();
+            const newPassword = getEl('force-password').value;
+            const confirmPassword = getEl('force-password-confirm').value;
+
+            if (newPassword !== confirmPassword) {
+                showMessage('Les mots de passe ne correspondent pas.', 'error');
+                return;
+            }
+
+            try {
+                await updatePassword(auth.currentUser, newPassword);
+                const userDocRef = doc(usersCollection, auth.currentUser.uid);
+                const displayName = `${firstName} ${lastName}`.trim();
+
+                await updateDoc(userDocRef, {
+                    firstName,
+                    lastName,
+                    displayName,
+                    mustChangePassword: false,
+                    updatedAt: new Date(),
+                    firstLoginCompletedAt: new Date()
+                });
+
+                currentUserProfile = {
+                    ...(currentUserProfile || {}),
+                    firstName,
+                    lastName,
+                    displayName,
+                    mustChangePassword: false
+                };
+
+                e.target.reset();
+
+                showMessage('Mot de passe mis à jour avec succès.', 'success');
+                initializeAppUI(currentUserRole || 'user', auth.currentUser.email);
+            } catch (error) {
+                console.error('Erreur mise à jour mot de passe:', error);
+                let message = "Impossible de mettre à jour le mot de passe.";
+                if (error.code === 'auth/requires-recent-login') {
+                    message = "Veuillez vous reconnecter pour modifier votre mot de passe.";
+                }
+                showMessage(message, 'error');
             }
         }
 
@@ -1992,6 +2317,64 @@
             } catch (error) {
                 console.error("Erreur ajout appareil:", error);
                 showMessage("Erreur lors de l'ajout de l'appareil.", "error");
+            }
+        }
+
+        async function handleCreateUser(e) {
+            e.preventDefault();
+            if (!isAuthReady || currentUserRole !== 'admin') {
+                showMessage("Action non autorisée.", 'error');
+                return;
+            }
+
+            const firstName = getEl('create-user-first-name').value.trim();
+            const lastName = getEl('create-user-last-name').value.trim();
+            const email = getEl('create-user-email').value.trim().toLowerCase();
+            const password = getEl('create-user-password').value;
+            const role = getEl('create-user-role').value;
+
+            if (!firstName || !lastName) {
+                showMessage('Merci de renseigner le prénom et le nom.', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('Le mot de passe provisoire doit contenir au moins 6 caractères.', 'error');
+                return;
+            }
+
+            try {
+                const adminAuth = getSecondaryAuthInstance();
+                const userCredential = await createUserWithEmailAndPassword(adminAuth, email, password);
+                const newUser = userCredential.user;
+
+                const displayName = `${firstName} ${lastName}`.trim();
+                await setDoc(doc(usersCollection, newUser.uid), {
+                    email,
+                    role,
+                    fonction: '',
+                    firstName,
+                    lastName,
+                    displayName,
+                    mustChangePassword: true,
+                    status: 'invited',
+                    createdAt: new Date(),
+                    createdBy: currentUserId || null
+                });
+
+                if (adminAuth.currentUser) {
+                    await signOut(adminAuth);
+                }
+
+                e.target.reset();
+                showMessage(`Compte créé pour ${displayName}.`, 'success');
+            } catch (error) {
+                console.error('Erreur création utilisateur:', error);
+                let message = "Impossible de créer cet utilisateur.";
+                if (error.code === 'auth/email-already-in-use') {
+                    message = "Cet email est déjà associé à un compte.";
+                }
+                showMessage(message, 'error');
             }
         }
         
@@ -2376,16 +2759,23 @@
             if (e.target.classList.contains('save-user-btn')) {
                 const userId = e.target.dataset.userId;
                 if (userId === currentUserId) return;
-                
+
                 const userRow = e.target.closest('.user-row');
                 const newRole = userRow.querySelector('[data-key="role"]').value;
-                const newFonction = userRow.querySelector('[data-key="fonction"]').value;
-                
+                const newFonction = userRow.querySelector('[data-key="fonction"]').value.trim();
+                const newFirstName = userRow.querySelector('[data-key="firstName"]').value.trim();
+                const newLastName = userRow.querySelector('[data-key="lastName"]').value.trim();
+                const displayName = `${newFirstName} ${newLastName}`.trim();
+
                 try {
                     const userDocRef = doc(usersCollection, userId);
-                    await updateDoc(userDocRef, { 
+                    await updateDoc(userDocRef, {
                         role: newRole,
-                        fonction: newFonction
+                        fonction: newFonction,
+                        firstName: newFirstName,
+                        lastName: newLastName,
+                        displayName,
+                        updatedAt: new Date()
                     });
                     showMessage("Utilisateur mis à jour.", "success");
                 } catch (error) {
@@ -2393,13 +2783,34 @@
                      showMessage("Erreur lors de la mise à jour.", "error");
                 }
             }
-            
+
+            if (e.target.classList.contains('force-reset-btn')) {
+                const userId = e.target.dataset.userId;
+                if (userId === currentUserId) {
+                    showMessage("Impossible de vous demander une réinitialisation.", 'error');
+                    return;
+                }
+
+                try {
+                    const userDocRef = doc(usersCollection, userId);
+                    await updateDoc(userDocRef, {
+                        mustChangePassword: true,
+                        updatedAt: new Date()
+                    });
+                    showMessage("L'utilisateur devra changer son mot de passe à la prochaine connexion.", 'success');
+                } catch (error) {
+                    console.error("Erreur forcer réinitialisation:", error);
+                    showMessage("Impossible de forcer la réinitialisation.", 'error');
+                }
+            }
+
             // Supprimer
             if (e.target.classList.contains('delete-user-btn')) {
                 const userId = e.target.dataset.userId;
                 if (userId === currentUserId) return;
 
-                const userEmail = e.target.closest('.user-row').querySelector('.font-medium').textContent;
+                const userRow = e.target.closest('.user-row');
+                const userEmail = userRow ? (userRow.dataset.userEmail || '') : '';
 
                 showConfirmationModal(
                     `Supprimer ${userEmail} ?`,
