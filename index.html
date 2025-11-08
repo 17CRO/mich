@@ -159,6 +159,58 @@
         .btn-gray:hover {
              background-color: #4B5563;
         }
+
+        .user-info-panel {
+            align-items: center;
+            text-align: center;
+        }
+
+        @media (min-width: 1024px) {
+            .user-info-panel {
+                align-items: flex-end;
+                text-align: right;
+            }
+        }
+
+        .scanner-heading-mobile-hidden {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            body[data-role="user"] #main-nav {
+                display: none;
+            }
+
+            #page-scanner .scanner-card {
+                border: none;
+                box-shadow: none;
+                background-color: transparent;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .scanner-heading-mobile-hidden {
+                display: none;
+            }
+        }
+
+        .user-details {
+            border-top: 1px solid #E5E7EB;
+        }
+
+        .user-summary-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        @media (min-width: 640px) {
+            .user-summary-badges {
+                justify-content: flex-end;
+            }
+        }
         
         /* Style des onglets de navigation (CSS standard) */
         .nav-tab {
@@ -270,11 +322,8 @@
                             </p>
                         </div>
                     </div>
-                    <div class="flex flex-col items-start lg:items-end gap-3 text-sm bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 shadow-lg shadow-black/10">
-                        <div class="flex flex-col text-left lg:text-right gap-1">
-                            <span id="user-name-display" class="text-base font-semibold hidden"></span>
-                            <span id="user-email-display" class="text-xs text-white/70 hidden"></span>
-                        </div>
+                    <div id="user-info-panel" class="user-info-panel flex flex-col items-center gap-3 text-sm bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 shadow-lg shadow-black/10">
+                        <span id="user-welcome-display" class="text-base font-semibold hidden"></span>
                         <span id="user-role-display" class="badge bg-white/20 text-white hidden"></span>
                         <button id="auth-button" class="btn btn-secondary text-sm px-5 py-2">Déconnexion</button>
                     </div>
@@ -384,8 +433,8 @@
 
         <!-- ================= PAGE 1: SCANNER ================= -->
         <div id="page-scanner" class="page hidden"> <!-- Page par défaut après connexion -->
-            <div class="card p-6 max-w-lg mx-auto space-y-4">
-                <h2 class="text-xl font-bold mb-4 text-center text-primary-dark">Scanner un QR Code</h2>
+            <div class="card scanner-card p-6 max-w-lg mx-auto space-y-4 text-center">
+                <h2 class="scanner-heading-mobile-hidden text-xl font-bold mb-4 text-primary-dark">Scanner un QR Code</h2>
                 <button id="start-scan-btn" class="w-full btn btn-primary py-3">
                     Démarrer le Scan
                 </button>
@@ -553,21 +602,49 @@
 
         <!-- ================= PAGE 5: RAPPORTS (Stats) ================= -->
         <div id="page-reports" class="page hidden">
-            <div class="card p-6 space-y-4">
-                <h2 class="text-2xl font-bold mb-6 text-primary-dark">Rapports d'Intervention</h2>
+            <div class="card p-6 space-y-6">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <h2 class="text-2xl font-bold text-primary-dark">Rapports d'Intervention</h2>
+                    <p id="reports-count" class="text-sm text-gray-500">0 rapport</p>
+                </div>
 
                 <!-- Filtres -->
-                <div class="grid gap-4 sm:grid-cols-2 mb-6">
-                    <div>
-                        <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par Magasin</label>
-                        <select id="report-filter-store" class="form-field custom-select">
-                            <option value="all">Tous les magasins</option>
-                            <!-- Options remplies par JS -->
-                        </select>
+                <div class="space-y-4">
+                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div>
+                            <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par magasin</label>
+                            <select id="report-filter-store" class="form-field custom-select">
+                                <option value="all">Tous les magasins</option>
+                                <!-- Options remplies par JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="report-filter-user" class="block text-gray-700 font-medium mb-1">Filtrer par intervenant</label>
+                            <select id="report-filter-user" class="form-field custom-select">
+                                <option value="all">Tous les intervenants</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="report-filter-form" class="block text-gray-700 font-medium mb-1">Filtrer par formulaire</label>
+                            <select id="report-filter-form" class="form-field custom-select">
+                                <option value="all">Tous les formulaires</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-3">
+                            <label for="report-search-input" class="block text-gray-700 font-medium mb-1">Rechercher</label>
+                            <input id="report-search-input" type="search" placeholder="Magasin, intervenant ou formulaire" class="form-field" />
+                        </div>
+                        <div>
+                            <label for="report-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
+                            <input id="report-filter-from" type="date" class="form-field">
+                        </div>
+                        <div>
+                            <label for="report-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
+                            <input id="report-filter-to" type="date" class="form-field">
+                        </div>
                     </div>
-                    <div>
-                        <label for="report-search-input" class="block text-gray-700 font-medium mb-1">Rechercher un magasin</label>
-                        <input id="report-search-input" type="search" placeholder="Nom ou code du magasin" class="form-field" />
+                    <div class="flex flex-wrap gap-3">
+                        <button id="report-reset-filters" type="button" class="btn btn-gray">Réinitialiser les filtres</button>
                     </div>
                 </div>
 
@@ -586,39 +663,56 @@
                 <!-- Colonne 1: Gestion des Utilisateurs -->
                 <div class="space-y-6">
                     <div class="card p-6 h-fit space-y-4">
-                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Créer un utilisateur</h2>
-                        <form id="create-user-form" class="space-y-4">
-                            <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="flex flex-col gap-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                 <div>
-                                    <label for="create-user-first-name" class="block text-sm font-medium text-gray-700">Prénom</label>
-                                    <input type="text" id="create-user-first-name" class="form-field" placeholder="ex: Léa" required>
+                                    <h2 class="text-xl font-bold text-primary-dark">Créer un utilisateur</h2>
+                                    <p class="text-sm text-gray-500">Invitez un nouveau membre à rejoindre la plateforme.</p>
+                                </div>
+                                <button id="toggle-create-user-form" type="button" class="btn btn-primary whitespace-nowrap">Créer un utilisateur</button>
+                            </div>
+                            <form id="create-user-form" class="space-y-4 hidden">
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label for="create-user-first-name" class="block text-sm font-medium text-gray-700">Prénom</label>
+                                        <input type="text" id="create-user-first-name" class="form-field" placeholder="ex: Léa" required>
+                                    </div>
+                                    <div>
+                                        <label for="create-user-last-name" class="block text-sm font-medium text-gray-700">Nom</label>
+                                        <input type="text" id="create-user-last-name" class="form-field" placeholder="ex: Martin" required>
+                                    </div>
                                 </div>
                                 <div>
-                                    <label for="create-user-last-name" class="block text-sm font-medium text-gray-700">Nom</label>
-                                    <input type="text" id="create-user-last-name" class="form-field" placeholder="ex: Martin" required>
+                                    <label for="create-user-email" class="block text-sm font-medium text-gray-700">Email professionnel</label>
+                                    <input type="email" id="create-user-email" class="form-field" placeholder="nom@entreprise.fr" required>
                                 </div>
-                            </div>
-                            <div>
-                                <label for="create-user-email" class="block text-sm font-medium text-gray-700">Email professionnel</label>
-                                <input type="email" id="create-user-email" class="form-field" placeholder="nom@entreprise.fr" required>
-                            </div>
-                            <div>
-                                <label for="create-user-password" class="block text-sm font-medium text-gray-700">Mot de passe provisoire</label>
-                                <input type="password" id="create-user-password" class="form-field" minlength="6" required>
-                                <p class="text-xs text-gray-500 mt-1">L'utilisateur devra le remplacer lors de sa première connexion.</p>
-                            </div>
-                            <div>
-                                <label for="create-user-role" class="block text-sm font-medium text-gray-700">Rôle initial</label>
-                                <select id="create-user-role" class="form-field custom-select">
-                                    <option value="user" selected>Utilisateur</option>
-                                    <option value="admin">Administrateur</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="w-full btn btn-primary">Créer et envoyer les accès</button>
-                        </form>
+                                <div>
+                                    <label for="create-user-password" class="block text-sm font-medium text-gray-700">Mot de passe provisoire</label>
+                                    <input type="password" id="create-user-password" class="form-field" minlength="6" required>
+                                    <p class="text-xs text-gray-500 mt-1">L'utilisateur devra le remplacer lors de sa première connexion.</p>
+                                </div>
+                                <div>
+                                    <label for="create-user-role" class="block text-sm font-medium text-gray-700">Rôle initial</label>
+                                    <select id="create-user-role" class="form-field custom-select">
+                                        <option value="user" selected>Utilisateur</option>
+                                        <option value="admin">Administrateur</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full btn btn-primary">Créer et envoyer les accès</button>
+                            </form>
+                        </div>
                     </div>
-                    <div class="card p-6 h-fit space-y-4">
-                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Utilisateurs enregistrés</h2>
+                    <div class="card p-6 h-fit space-y-5">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-primary-dark">Utilisateurs enregistrés</h2>
+                                <p id="users-count" class="text-sm text-gray-500">0 utilisateur</p>
+                            </div>
+                            <div class="w-full sm:w-64">
+                                <label for="user-search-input" class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+                                <input id="user-search-input" type="search" class="form-field" placeholder="Nom, email ou rôle">
+                            </div>
+                        </div>
                         <div id="users-list" class="space-y-3">
                             <!-- Liste des utilisateurs chargée par JS -->
                         </div>
@@ -934,6 +1028,13 @@
         let openStoreIds = new Set();
         let reportSearchTerm = '';
         let openReportStoreIds = new Set();
+        let allUsers = [];
+        let userSearchTerm = '';
+        let reportFilterUserId = 'all';
+        let reportFilterFormId = 'all';
+        let reportFilterFrom = '';
+        let reportFilterTo = '';
+        let isCreateUserFormOpen = false;
         let currentBulkQrData = [];
         let messageTimeoutId = null;
         let messageActionHandler = null;
@@ -976,6 +1077,96 @@
                 .filter(part => part && part.trim().length > 0)
                 .join(' ')
                 .trim();
+        }
+
+        function getFirstName(profile) {
+            if (!profile) return '';
+            if (profile.firstName && profile.firstName.trim().length > 0) {
+                return profile.firstName.trim();
+            }
+            if (profile.displayName && profile.displayName.trim().length > 0) {
+                return profile.displayName.trim().split(' ')[0];
+            }
+            return '';
+        }
+
+        function updateWelcomeMessage() {
+            const welcomeDisplay = getEl('user-welcome-display');
+            if (!welcomeDisplay) return;
+
+            const firstName = getFirstName(currentUserProfile);
+            if (firstName) {
+                welcomeDisplay.textContent = `Bienvenue ${firstName}`;
+                welcomeDisplay.classList.remove('hidden');
+            } else {
+                welcomeDisplay.textContent = '';
+                welcomeDisplay.classList.add('hidden');
+            }
+        }
+
+        function setCreateUserFormVisibility(shouldShow) {
+            const form = getEl('create-user-form');
+            const toggleBtn = getEl('toggle-create-user-form');
+            if (!form || !toggleBtn) return;
+
+            isCreateUserFormOpen = shouldShow;
+
+            if (shouldShow) {
+                form.classList.remove('hidden');
+                toggleBtn.textContent = 'Fermer';
+                toggleBtn.classList.remove('btn-primary');
+                toggleBtn.classList.add('btn-gray');
+                const firstNameInput = getEl('create-user-first-name');
+                if (firstNameInput) {
+                    firstNameInput.focus();
+                }
+            } else {
+                form.classList.add('hidden');
+                toggleBtn.textContent = 'Créer un utilisateur';
+                toggleBtn.classList.remove('btn-gray');
+                if (!toggleBtn.classList.contains('btn-primary')) {
+                    toggleBtn.classList.add('btn-primary');
+                }
+            }
+        }
+
+        function toggleCreateUserForm() {
+            setCreateUserFormVisibility(!isCreateUserFormOpen);
+        }
+
+        function updateReportUserFilter() {
+            const userSelect = getEl('report-filter-user');
+            if (!userSelect) return;
+
+            const previousValue = reportFilterUserId;
+            userSelect.innerHTML = '<option value="all">Tous les intervenants</option>';
+
+            const sortedUsers = [...allUsers]
+                .filter(user => user && user.id)
+                .sort((a, b) => {
+                    const nameA = (getDisplayName(a) || a.email || '').toLowerCase();
+                    const nameB = (getDisplayName(b) || b.email || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+            sortedUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+
+                let label = getDisplayName(user) || user.email || 'Utilisateur';
+                if (user.fonction) {
+                    label += ` • ${user.fonction}`;
+                }
+                option.textContent = label;
+                userSelect.appendChild(option);
+            });
+
+            if (sortedUsers.some(user => user.id === previousValue)) {
+                userSelect.value = previousValue;
+            } else {
+                reportFilterUserId = 'all';
+                userSelect.value = 'all';
+            }
         }
 
         function getSecondaryAuthInstance() {
@@ -1075,13 +1266,23 @@
                     hideAllPages();
                     getEl('page-login').classList.remove('hidden');
 
-                    const nameDisplay = getEl('user-name-display');
-                    if (nameDisplay) nameDisplay.classList.add('hidden');
-                    const emailDisplay = getEl('user-email-display');
-                    if (emailDisplay) emailDisplay.classList.add('hidden');
+                    const welcomeDisplay = getEl('user-welcome-display');
+                    if (welcomeDisplay) welcomeDisplay.classList.add('hidden');
                     const roleDisplay = getEl('user-role-display');
                     if (roleDisplay) roleDisplay.classList.add('hidden');
 
+                    delete document.body.dataset.role;
+                    allUsers = [];
+                    userSearchTerm = '';
+                    reportFilterUserId = 'all';
+                    reportFilterFormId = 'all';
+                    reportFilterFrom = '';
+                    reportFilterTo = '';
+                    isCreateUserFormOpen = false;
+                    updateReportUserFilter();
+                    setCreateUserFormVisibility(false);
+                    const userSearchInput = getEl('user-search-input');
+                    if (userSearchInput) userSearchInput.value = '';
                     stopDataListeners(); // Arrêter les écouteurs de données
                 }
             });
@@ -1135,23 +1336,8 @@
             getEl('main-header').classList.remove('hidden');
             getEl('main-nav').classList.remove('hidden');
 
-            // Afficher infos utilisateur
-            const emailDisplay = getEl('user-email-display');
-            if (emailDisplay) {
-                emailDisplay.textContent = email;
-                emailDisplay.classList.remove('hidden');
-            }
-
-            const nameDisplay = getEl('user-name-display');
-            if (nameDisplay) {
-                const displayName = getDisplayName(currentUserProfile);
-                if (displayName) {
-                    nameDisplay.textContent = displayName;
-                    nameDisplay.classList.remove('hidden');
-                } else {
-                    nameDisplay.classList.add('hidden');
-                }
-            }
+            document.body.dataset.role = role;
+            updateWelcomeMessage();
 
             const roleDisplay = getEl('user-role-display');
             if (roleDisplay) {
@@ -1159,6 +1345,8 @@
                 roleDisplay.textContent = roleLabel;
                 roleDisplay.classList.remove('hidden');
             }
+
+            setCreateUserFormVisibility(false);
 
             // Gérer la visibilité des onglets et des pages
             const adminOnlyElements = document.querySelectorAll('.admin-only');
@@ -1267,14 +1455,19 @@
 
             storeSelects.forEach(sel => {
                 if(sel) {
+                    const previousValue = sel.value;
                     const firstOptionValue = sel.options[0] ? sel.options[0].value : "all";
                     const firstOptionText = sel.options[0] ? sel.options[0].text : "Tous les magasins";
-                    
+
                     sel.innerHTML = `<option value="${firstOptionValue}">${firstOptionText}</option>`; // Garder la première option
-                    
+
                     allStores.sort((a,b) => a.name.localeCompare(b.name)).forEach(store => {
                         sel.innerHTML += `<option value="${store.id}">${store.name} (${store.code})</option>`;
                     });
+
+                    if (Array.from(sel.options).some(option => option.value === previousValue)) {
+                        sel.value = previousValue;
+                    }
                 }
             });
             
@@ -1287,6 +1480,22 @@
                     });
                  }
             });
+
+            const reportFormSelect = getEl('report-filter-form');
+            if (reportFormSelect) {
+                const previousValue = reportFilterFormId;
+                reportFormSelect.innerHTML = '<option value="all">Tous les formulaires</option>';
+                allForms.sort((a,b) => a.title.localeCompare(b.title)).forEach(form => {
+                    reportFormSelect.innerHTML += `<option value="${form.id}">${form.title}</option>`;
+                });
+
+                if (allForms.some(form => form.id === previousValue)) {
+                    reportFormSelect.value = previousValue;
+                } else {
+                    reportFilterFormId = 'all';
+                    reportFormSelect.value = 'all';
+                }
+            }
         }
         
         // Remplit les listes déroulantes des types d'appareils
@@ -1466,6 +1675,7 @@
         function renderReportsList() {
             const listContainer = getEl('reports-list');
             const filterSelect = getEl('report-filter-store');
+            const countElement = getEl('reports-count');
 
             if (!listContainer || !filterSelect) return;
 
@@ -1474,31 +1684,105 @@
                 searchInput.value = reportSearchTerm;
             }
 
+            const userSelect = getEl('report-filter-user');
+            if (userSelect && userSelect.value !== reportFilterUserId) {
+                userSelect.value = reportFilterUserId;
+            }
+
+            const formSelect = getEl('report-filter-form');
+            if (formSelect && formSelect.value !== reportFilterFormId) {
+                formSelect.value = reportFilterFormId;
+            }
+
+            const fromInput = getEl('report-filter-from');
+            if (fromInput && fromInput.value !== reportFilterFrom) {
+                fromInput.value = reportFilterFrom;
+            }
+
+            const toInput = getEl('report-filter-to');
+            if (toInput && toInput.value !== reportFilterTo) {
+                toInput.value = reportFilterTo;
+            }
+
+            if (allReports.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 py-4">Aucun rapport soumis pour le moment.</p>';
+                if (countElement) countElement.textContent = '0 rapport';
+                return;
+            }
+
             const filterStoreId = filterSelect.value;
             const normalizedSearch = reportSearchTerm.trim().toLowerCase();
+            const fromDate = reportFilterFrom ? new Date(reportFilterFrom) : null;
+            if (fromDate) fromDate.setHours(0, 0, 0, 0);
+            const toDate = reportFilterTo ? new Date(reportFilterTo) : null;
+            if (toDate) toDate.setHours(23, 59, 59, 999);
+
+            const hasActiveFilters = normalizedSearch.length > 0
+                || filterStoreId !== 'all'
+                || reportFilterUserId !== 'all'
+                || reportFilterFormId !== 'all'
+                || Boolean(reportFilterFrom)
+                || Boolean(reportFilterTo);
 
             const grouped = new Map();
 
             allReports.forEach(report => {
                 if (filterStoreId !== 'all' && report.storeId !== filterStoreId) return;
+                if (reportFilterUserId !== 'all' && report.userId !== reportFilterUserId) return;
+                if (reportFilterFormId !== 'all' && report.formId !== reportFilterFormId) return;
+
+                const reportDateObj = report.timestamp?.toDate ? report.timestamp.toDate() : null;
+                if (fromDate && (!reportDateObj || reportDateObj < fromDate)) return;
+                if (toDate && (!reportDateObj || reportDateObj > toDate)) return;
 
                 const store = allStores.find(s => s.id === report.storeId);
-                const storeName = store ? store.name : `Magasin inconnu`;
+                const storeName = store ? store.name : 'Magasin inconnu';
                 const storeCode = store ? (store.code || '') : '';
-                const matchesSearch = !normalizedSearch ||
-                    storeName.toLowerCase().includes(normalizedSearch) ||
-                    storeCode.toLowerCase().includes(normalizedSearch);
 
-                if (!matchesSearch) return;
+                const form = allForms.find(f => f.id === report.formId);
+                const formTitle = form ? form.title : '';
+
+                const user = allUsers.find(u => u.id === report.userId);
+                const submitterLabelRaw = getDisplayName(user) || user?.email || report.userEmail || '';
+                const submitterEmailRaw = user?.email && user.email !== submitterLabelRaw
+                    ? user.email
+                    : (report.userEmail && report.userEmail !== submitterLabelRaw ? report.userEmail : '');
+
+                const searchSources = [
+                    storeName,
+                    storeCode,
+                    formTitle,
+                    submitterLabelRaw,
+                    submitterEmailRaw
+                ].map(value => (value || '').toLowerCase());
+
+                if (normalizedSearch && !searchSources.some(value => value.includes(normalizedSearch))) {
+                    return;
+                }
 
                 if (!grouped.has(report.storeId)) {
                     grouped.set(report.storeId, { store, reports: [] });
                 }
-                grouped.get(report.storeId).reports.push(report);
+
+                grouped.get(report.storeId).reports.push({
+                    ...report,
+                    _meta: {
+                        storeName,
+                        storeCode,
+                        formTitle,
+                        submitterLabelRaw,
+                        submitterEmailRaw,
+                        reportDateObj
+                    }
+                });
             });
 
             if (grouped.size === 0) {
                 listContainer.innerHTML = '<p class="text-gray-500 py-4">Aucun rapport ne correspond à votre recherche.</p>';
+                if (countElement) {
+                    const totalLabel = allReports.length > 1 ? 'rapports' : 'rapport';
+                    countElement.textContent = `0 rapport (sur ${allReports.length} ${totalLabel})`;
+                }
                 return;
             }
 
@@ -1508,8 +1792,8 @@
                 storeId,
                 store: data.store,
                 reports: data.reports.sort((a, b) => {
-                    const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(0);
-                    const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(0);
+                    const dateA = a._meta.reportDateObj || new Date(0);
+                    const dateB = b._meta.reportDateObj || new Date(0);
                     return dateB - dateA;
                 })
             })).sort((a, b) => {
@@ -1518,39 +1802,52 @@
                 return nameA.localeCompare(nameB);
             });
 
+            const totalReports = groupedArray.reduce((sum, group) => sum + group.reports.length, 0);
+            if (countElement) {
+                const label = totalReports > 1 ? 'rapports' : 'rapport';
+                const suffix = totalReports !== allReports.length ? ` (sur ${allReports.length})` : '';
+                countElement.textContent = `${totalReports} ${label}${suffix}`;
+            }
+
             listContainer.innerHTML = groupedArray.map(group => {
-                const storeName = group.store ? group.store.name : `Magasin inconnu`;
+                const storeName = group.store ? group.store.name : 'Magasin inconnu';
                 const storeCode = group.store && group.store.code ? group.store.code : '';
                 const storeNameSafe = escapeHtml(storeName);
                 const storeCodeSafe = escapeHtml(storeCode);
-                const hasSearch = normalizedSearch.length > 0;
-                const isOpen = hasSearch || openReportStoreIds.has(group.storeId);
+                const isOpen = hasActiveFilters || openReportStoreIds.has(group.storeId);
                 const toggleIcon = isOpen ? '&minus;' : '+';
                 const wrapperClasses = `divide-y divide-gray-200 ${isOpen ? '' : 'hidden'}`;
 
                 const reportsHtml = group.reports.map(report => {
-                    const reportDate = report.timestamp?.toDate ? report.timestamp.toDate().toLocaleString('fr-FR') : 'Date inconnue';
-                    const submitter = report.userEmail || report.userId || 'Utilisateur inconnu';
-                    const reportDateSafe = escapeHtml(reportDate);
-                    const submitterSafe = escapeHtml(submitter);
+                    const meta = report._meta || {};
+                    const reportDateLabel = meta.reportDateObj ? meta.reportDateObj.toLocaleString('fr-FR') : 'Date inconnue';
+                    const reportDateSafe = escapeHtml(reportDateLabel);
+                    const submitterSafe = escapeHtml(meta.submitterLabelRaw || 'Utilisateur inconnu');
+                    const submitterEmailSafe = meta.submitterEmailRaw ? escapeHtml(meta.submitterEmailRaw) : '';
+                    const submitterEmailMarkup = submitterEmailSafe
+                        ? ` <span class="text-xs text-gray-400">(${submitterEmailSafe})</span>`
+                        : '';
+                    const formTitleSafe = escapeHtml(meta.formTitle || 'Formulaire inconnu');
+
                     const dataEntries = Object.entries(report.data || {});
                     const dataHtml = dataEntries.length > 0
                         ? dataEntries.map(([key, value]) => {
                             const keySafe = escapeHtml(key);
                             if (Array.isArray(value)) {
                                 const listItems = value.map(v => `<li class="ml-4 list-disc">${escapeHtml(v)}</li>`).join('');
-                                return `<li><strong>${keySafe}:</strong><ul>${listItems}</ul></li>`;
+                                return `<li><strong>${keySafe} :</strong><ul>${listItems}</ul></li>`;
                             }
-                            return `<li><strong>${keySafe}:</strong> <span class="font-medium">${escapeHtml(value)}</span></li>`;
+                            return `<li><strong>${keySafe} :</strong> <span class="font-medium">${escapeHtml(value)}</span></li>`;
                         }).join('')
                         : '<li>Aucune donnée</li>';
 
                     return `
                         <div class="p-4 bg-white" data-report-id="${report.id}">
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
+                                <div class="space-y-1">
                                     <p class="font-semibold text-sm text-gray-700">${reportDateSafe}</p>
-                                    <p class="text-xs text-gray-500">Soumis par <span class="font-mono">${submitterSafe}</span></p>
+                                    <p class="text-xs text-gray-500">Soumis par <span class="font-medium">${submitterSafe}</span>${submitterEmailMarkup}</p>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">Formulaire : ${formTitleSafe}</span>
                                 </div>
                                 <div class="flex gap-2">
                                     <button class="edit-report-btn text-xs bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-report-id="${report.id}">Éditer</button>
@@ -1573,7 +1870,7 @@
                                     <div class="flex items-center justify-between gap-3">
                                         <div>
                                             <h3 class="text-lg font-bold text-primary">${storeNameSafe}</h3>
-                                            ${storeCode ? `<p class="text-sm text-gray-500">Code: ${storeCodeSafe}</p>` : ''}
+                                            ${storeCode ? `<p class="text-sm text-gray-500">Code : ${storeCodeSafe}</p>` : ''}
                                         </div>
                                         <div class="flex items-center gap-2 text-sm text-gray-500">
                                             <span>${group.reports.length} rapport(s)</span>
@@ -1722,80 +2019,130 @@
         // Rendu de la liste des utilisateurs (Admin)
         function renderUsersList(users) {
             const listContainer = getEl('users-list');
+            const countElement = getEl('users-count');
+            const searchInput = getEl('user-search-input');
             if (!listContainer) return;
 
-            const activeProfile = users.find(u => u.id === currentUserId);
-            if (activeProfile) {
-                currentUserProfile = { ...activeProfile };
-                const nameDisplay = getEl('user-name-display');
-                if (nameDisplay) {
-                    const displayName = getDisplayName(currentUserProfile);
-                    if (displayName) {
-                        nameDisplay.textContent = escapeHtml(displayName);
-                        nameDisplay.classList.remove('hidden');
-                    } else {
-                        nameDisplay.classList.add('hidden');
-                    }
-                }
+            allUsers = Array.isArray(users) ? [...users] : [];
+
+            if (searchInput && searchInput.value !== userSearchTerm) {
+                searchInput.value = userSearchTerm;
             }
 
-            listContainer.innerHTML = users
-                .sort((a, b) => (a.email || '').localeCompare(b.email || ''))
-                .map(user => {
-                    const isCurrentUser = user.id === currentUserId;
-                    const userIdAttr = escapeHtml(user.id || '');
-                    const email = escapeHtml(user.email || '');
-                    const firstNameValue = escapeHtml(user.firstName || '');
-                    const lastNameValue = escapeHtml(user.lastName || '');
-                    const fonctionValue = escapeHtml(user.fonction || '');
-                    const rawDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-                    const displayName = rawDisplayName ? escapeHtml(rawDisplayName) : '';
-                    const userRole = user.role || 'user';
+            if (allUsers.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">Aucun utilisateur enregistré pour le moment.</p>';
+                if (countElement) countElement.textContent = '0 utilisateur';
+                updateReportUserFilter();
+                renderReportsList();
+                return;
+            }
 
-                    const roleOptions = userRole === 'new'
-                        ? `
+            const activeProfile = allUsers.find(u => u.id === currentUserId);
+            if (activeProfile) {
+                currentUserProfile = { ...activeProfile };
+                updateWelcomeMessage();
+            }
+
+            updateReportUserFilter();
+
+            const normalizedTerm = userSearchTerm.trim().toLowerCase();
+            const filteredUsers = allUsers
+                .filter(user => {
+                    if (!normalizedTerm) return true;
+                    const name = (getDisplayName(user) || '').toLowerCase();
+                    const email = (user.email || '').toLowerCase();
+                    const role = (user.role || '').toLowerCase();
+                    const fonction = (user.fonction || '').toLowerCase();
+                    return name.includes(normalizedTerm)
+                        || email.includes(normalizedTerm)
+                        || role.includes(normalizedTerm)
+                        || fonction.includes(normalizedTerm);
+                })
+                .sort((a, b) => {
+                    const nameA = (getDisplayName(a) || a.email || '').toLowerCase();
+                    const nameB = (getDisplayName(b) || b.email || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+            if (countElement) {
+                const total = allUsers.length;
+                const filteredCount = filteredUsers.length;
+                const label = filteredCount > 1 ? 'utilisateurs' : 'utilisateur';
+                const suffix = filteredCount !== total ? ` (sur ${total})` : '';
+                countElement.textContent = `${filteredCount} ${label}${suffix}`;
+            }
+
+            if (filteredUsers.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">Aucun utilisateur ne correspond à votre recherche.</p>';
+                renderReportsList();
+                return;
+            }
+
+            listContainer.innerHTML = filteredUsers.map(user => {
+                const isCurrentUser = user.id === currentUserId;
+                const userIdAttr = escapeHtml(user.id || '');
+                const emailAttr = escapeHtml(user.email || '');
+                const firstNameValue = escapeHtml(user.firstName || '');
+                const lastNameValue = escapeHtml(user.lastName || '');
+                const fonctionValue = escapeHtml(user.fonction || '');
+                const displayName = escapeHtml(getDisplayName(user) || 'Nom non renseigné');
+                const userRole = user.role || 'user';
+
+                const roleOptions = userRole === 'new'
+                    ? `
                             <option value="new" ${userRole === 'new' ? 'selected' : ''}>Nouveau (En attente)</option>
                             <option value="user" ${userRole === 'user' ? 'selected' : ''}>Utilisateur</option>
                             <option value="admin" ${userRole === 'admin' ? 'selected' : ''}>Administrateur</option>
                         `
-                        : `
+                    : `
                             <option value="user" ${userRole === 'user' ? 'selected' : ''}>Utilisateur</option>
                             <option value="admin" ${userRole === 'admin' ? 'selected' : ''}>Administrateur</option>
                         `;
 
-                    const statusBadge = user.mustChangePassword
-                        ? '<span class="badge bg-secondary text-white">MDP à changer</span>'
-                        : '<span class="badge bg-emerald-100 text-emerald-800">Actif</span>';
+                const statusBadge = user.mustChangePassword
+                    ? '<span class="badge bg-secondary text-white">MDP à changer</span>'
+                    : '<span class="badge bg-emerald-100 text-emerald-800">Actif</span>';
 
-                    const resetButtonLabel = user.mustChangePassword
-                        ? 'Réinitialisation en attente'
-                        : 'Forcer la réinitialisation';
+                const resetButtonLabel = user.mustChangePassword
+                    ? 'Réinitialisation en attente'
+                    : 'Forcer la réinitialisation';
 
-                    const resetButtonDisabled = user.mustChangePassword ? 'disabled' : '';
+                const resetButtonDisabled = user.mustChangePassword ? 'disabled' : '';
 
-                    const roleBadge = userRole === 'admin'
-                        ? '<span class="badge bg-primary text-white">Admin</span>'
-                        : (userRole === 'new'
-                            ? '<span class="badge bg-amber-100 text-amber-800">En attente</span>'
-                            : '<span class="badge bg-emerald-100 text-emerald-800">Utilisateur</span>');
+                const roleBadge = userRole === 'admin'
+                    ? '<span class="badge bg-primary text-white">Admin</span>'
+                    : (userRole === 'new'
+                        ? '<span class="badge bg-amber-100 text-amber-800">En attente</span>'
+                        : '<span class="badge bg-emerald-100 text-emerald-800">Utilisateur</span>');
 
-                    const baseClasses = ['user-row', 'border', 'border-gray-200', 'rounded-xl', 'p-4', 'space-y-4', 'shadow-sm', 'bg-white'];
-                    if (isCurrentUser) baseClasses.push('border-emerald-400', 'shadow-md');
-                    if (userRole === 'new') baseClasses.push('bg-amber-50');
-                    const rowClass = baseClasses.join(' ');
+                const baseClasses = ['user-row', 'border', 'border-gray-200', 'rounded-xl', 'p-4', 'space-y-3', 'shadow-sm', 'bg-white'];
+                if (isCurrentUser) baseClasses.push('border-emerald-400', 'shadow-md');
+                if (userRole === 'new') baseClasses.push('bg-amber-50');
+                const rowClass = baseClasses.join(' ');
 
-                    return `
-                        <div class="${rowClass}" data-user-id="${userIdAttr}" data-user-email="${email}">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                <div>
-                                    <p class="text-base font-semibold text-primary-dark">${displayName || 'Nom non renseigné'}</p>
-                                    <p class="text-sm text-gray-500">${email}</p>
-                                </div>
-                                <div class="flex flex-wrap gap-2">
-                                    ${statusBadge}
-                                    ${roleBadge}
-                                </div>
+                const fonctionMarkup = user.fonction
+                    ? `<p class="text-xs text-gray-500 mt-1">${fonctionValue}</p>`
+                    : '';
+
+                const emailMarkup = user.email
+                    ? `<p class="text-sm text-gray-500">${escapeHtml(user.email)}</p>`
+                    : '<p class="text-sm text-gray-400 italic">Email non renseigné</p>';
+
+                return `
+                    <div class="${rowClass}" data-user-id="${userIdAttr}" data-user-email="${emailAttr}">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="text-left">
+                                <p class="text-base font-semibold text-primary-dark">${displayName}</p>
+                                ${emailMarkup}
+                                ${fonctionMarkup}
                             </div>
+                            <div class="user-summary-badges">
+                                ${statusBadge}
+                                ${roleBadge}
+                                <button type="button" class="toggle-user-details btn btn-secondary text-xs py-1" data-user-id="${userIdAttr}">Modifier</button>
+                            </div>
+                        </div>
+                        <div class="user-details hidden pt-3 mt-3 space-y-3">
                             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <div>
                                     <label class="block text-xs font-medium text-gray-500">Prénom</label>
@@ -1817,19 +2164,16 @@
                                 </div>
                             </div>
                             <div class="flex flex-wrap gap-2">
-                                <button class="save-user-btn btn btn-primary text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : ''}>
-                                    Enregistrer
-                                </button>
-                                <button class="force-reset-btn btn btn-secondary text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : resetButtonDisabled}>
-                                    ${resetButtonLabel}
-                                </button>
-                                <button class="delete-user-btn btn btn-danger text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : ''}>
-                                    Supprimer
-                                </button>
+                                <button type="button" class="save-user-btn btn btn-primary text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : ''}>Enregistrer</button>
+                                <button type="button" class="force-reset-btn btn btn-secondary text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : resetButtonDisabled}>${resetButtonLabel}</button>
+                                <button type="button" class="delete-user-btn btn btn-danger text-sm py-1" data-user-id="${userIdAttr}" ${isCurrentUser ? 'disabled' : ''}>Supprimer</button>
                             </div>
                         </div>
-                    `;
-                }).join('');
+                    </div>
+                `;
+            }).join('');
+
+            renderReportsList();
         }
         
         // Rendu de la liste des types d'appareils (Admin)
@@ -2079,6 +2423,22 @@
                 createUserForm.addEventListener('submit', handleCreateUser);
             }
 
+            const toggleCreateUserBtn = getEl('toggle-create-user-form');
+            if (toggleCreateUserBtn) {
+                toggleCreateUserBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    toggleCreateUserForm();
+                });
+            }
+
+            const userSearchInput = getEl('user-search-input');
+            if (userSearchInput) {
+                userSearchInput.addEventListener('input', (e) => {
+                    userSearchTerm = e.target.value;
+                    renderUsersList(allUsers);
+                });
+            }
+
             // Délégation pour la liste des utilisateurs
             getEl('users-list').addEventListener('click', handleUsersListClick);
             
@@ -2092,9 +2452,11 @@
 
             // Délégation pour la liste des types
             getEl('equip-types-list').addEventListener('click', handleEquipTypesListClick);
-            
+
             // Soumission modale édition type
             getEl('edit-equip-type-form').addEventListener('submit', handleEditEquipType);
+
+            setCreateUserFormVisibility(false);
         }
         
         // Groupe: Page Rapports
@@ -2108,6 +2470,57 @@
             if (searchInput) {
                 searchInput.addEventListener('input', (e) => {
                     reportSearchTerm = e.target.value;
+                    renderReportsList();
+                });
+            }
+
+            const userSelect = getEl('report-filter-user');
+            if (userSelect) {
+                userSelect.addEventListener('change', (e) => {
+                    reportFilterUserId = e.target.value || 'all';
+                    renderReportsList();
+                });
+            }
+
+            const formSelect = getEl('report-filter-form');
+            if (formSelect) {
+                formSelect.addEventListener('change', (e) => {
+                    reportFilterFormId = e.target.value || 'all';
+                    renderReportsList();
+                });
+            }
+
+            const fromInput = getEl('report-filter-from');
+            if (fromInput) {
+                fromInput.addEventListener('change', (e) => {
+                    reportFilterFrom = e.target.value;
+                    renderReportsList();
+                });
+            }
+
+            const toInput = getEl('report-filter-to');
+            if (toInput) {
+                toInput.addEventListener('change', (e) => {
+                    reportFilterTo = e.target.value;
+                    renderReportsList();
+                });
+            }
+
+            const resetBtn = getEl('report-reset-filters');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    reportSearchTerm = '';
+                    reportFilterUserId = 'all';
+                    reportFilterFormId = 'all';
+                    reportFilterFrom = '';
+                    reportFilterTo = '';
+                    if (filterSelect) filterSelect.value = 'all';
+                    if (userSelect) userSelect.value = 'all';
+                    if (formSelect) formSelect.value = 'all';
+                    if (searchInput) searchInput.value = '';
+                    if (fromInput) fromInput.value = '';
+                    if (toInput) toInput.value = '';
                     renderReportsList();
                 });
             }
@@ -2403,6 +2816,7 @@
                 }
 
                 e.target.reset();
+                setCreateUserFormVisibility(false);
                 showMessage(`Compte créé pour ${displayName}.`, 'success');
             } catch (error) {
                 console.error('Erreur création utilisateur:', error);
@@ -2791,6 +3205,30 @@
         
         // Handler: Clics sur la liste des utilisateurs (délégation)
         async function handleUsersListClick(e) {
+            if (e.target.classList.contains('toggle-user-details')) {
+                const userRow = e.target.closest('.user-row');
+                if (!userRow) return;
+
+                const details = userRow.querySelector('.user-details');
+                if (!details) return;
+
+                const isHidden = details.classList.contains('hidden');
+                if (isHidden) {
+                    details.classList.remove('hidden');
+                    e.target.textContent = 'Fermer';
+                    e.target.classList.remove('btn-secondary');
+                    e.target.classList.add('btn-gray');
+                } else {
+                    details.classList.add('hidden');
+                    e.target.textContent = 'Modifier';
+                    e.target.classList.remove('btn-gray');
+                    if (!e.target.classList.contains('btn-secondary')) {
+                        e.target.classList.add('btn-secondary');
+                    }
+                }
+                return;
+            }
+
             // Sauvegarder
             if (e.target.classList.contains('save-user-btn')) {
                 const userId = e.target.dataset.userId;
