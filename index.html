@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de Maintenance (Cloud)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bibliothèque pour générer les QR Codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Bibliothèque pour scanner les QR Codes -->
+    <script src="https://unpkg.com/html5-qrcode@2.0.9/dist/html5-qrcode.min.js"></script>
+    
+    <!-- Police Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Définition des couleurs personnalisées */
+        :root {
+            --color-primary: #00594E; /* Vert foncé */
+            --color-secondary: #E56A54; /* Corail/Rouge */
+            --color-danger: #D9534F; /* Rouge pour suppressions/erreurs */
+        }
+
+        /* Style pour le lecteur QR */
+        #qr-reader {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        /* Masquer les flèches sur les champs de type nombre */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        
+        /* Nouveaux styles pour les champs de formulaire (CSS standard) */
+        .form-field {
+            width: 100%;
+            padding-left: 0.75rem; /* px-3 */
+            padding-right: 0.75rem; /* px-3 */
+            padding-top: 0.5rem; /* py-2 */
+            padding-bottom: 0.5rem; /* py-2 */
+            border: 1px solid #D1D5DB; /* border-gray-300 */
+            border-radius: 0.5rem; /* rounded-lg */
+            transition-property: all;
+            transition-duration: 200ms;
+        }
+        
+        .form-field:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            --tw-ring-color: var(--color-secondary);
+            box-shadow: 0 0 0 2px var(--tw-ring-color);
+            opacity: 0.5;
+        }
+
+        /* Amélioration des Select */
+        .custom-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%2Mxmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E');
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.25em 1.25em;
+            padding-right: 2.5rem; /* Espace pour l'icône */
+        }
+        
+        /* Style des boutons (CSS standard) */
+        .btn {
+            padding-left: 1rem; /* px-4 */
+            padding-right: 1rem; /* px-4 */
+            padding-top: 0.5rem; /* py-2 */
+            padding-bottom: 0.5rem; /* py-2 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 600; /* font-semibold */
+            color: white; /* text-white */
+            transition-property: all; /* transition */
+            transition-duration: 200ms; /* duration-200 */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+        }
+        .btn-primary {
+            background-color: var(--color-primary);
+        }
+        .btn-primary:hover {
+            background-color: #004238; /* Version plus foncée */
+        }
+        .btn-secondary {
+            background-color: var(--color-secondary);
+        }
+        .btn-secondary:hover {
+            background-color: #D9534F; /* Version plus foncée */
+        }
+        .btn-danger {
+            background-color: var(--color-danger);
+        }
+        .btn-danger:hover {
+            background-color: #c9302c;
+        }
+        .btn-gray {
+            background-color: #6B7280; /* Gris */
+        }
+        .btn-gray:hover {
+             background-color: #4B5563;
+        }
+        
+        /* Style des onglets de navigation (CSS standard) */
+        .nav-tab {
+            padding-top: 0.75rem; /* py-3 */
+            padding-bottom: 0.75rem; /* py-3 */
+            padding-left: 0.5rem; /* px-2 */
+            padding-right: 0.5rem; /* px-2 */
+            border-bottom-width: 2px;
+            font-weight: 500; /* font-medium */
+            font-size: 0.875rem; /* text-sm */
+        }
+        .nav-tab-active {
+            border-color: var(--color-secondary);
+            color: var(--color-secondary);
+        }
+        .nav-tab-inactive {
+            border-color: transparent; /* border-transparent */
+            color: #6B7280; /* text-gray-500 */
+        }
+        .nav-tab-inactive:hover {
+            color: #374151; /* hover:text-gray-700 */
+            border-color: #D1D5DB; /* hover:border-gray-300 */
+        }
+        
+        /* Couleurs de texte personnalisées */
+        .text-primary { color: var(--color-primary); }
+        .text-primary-dark { color: #004238; }
+        .text-secondary { color: var(--color-secondary); }
+        .text-danger { color: var(--color-danger); }
+        
+        /* Styles pour l'impression */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #qr-modal, #qr-modal * {
+                visibility: visible;
+            }
+            #qr-modal {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background: white;
+                padding: 0;
+                margin: 0;
+                max-height: none;
+                overflow: visible;
+            }
+            #qr-modal-content {
+                display: block !important; /* Permet à la grille de s'afficher */
+                overflow: visible !important;
+                max-height: none !important;
+            }
+            .qr-grid-item {
+                page-break-inside: avoid !important; /* Éviter les coupures */
+                border: 1px solid #ccc;
+                padding: 8px;
+                margin-bottom: 8px;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- En-tête -->
+    <header id="main-header" class="bg-white shadow-md hidden">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-primary">Gest'Appareils</h1>
+            <div class="flex items-center space-x-4">
+                <span id="user-email-display" class="text-sm text-gray-600 hidden"></span>
+                <span id="user-role-display" class="text-xs font-semibold uppercase px-2 py-0.5 rounded-full hidden"></span>
+                <button id="auth-button" class="btn btn-gray text-sm py-1 px-3">Déconnexion</button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Navigation principale (Onglets) -->
+    <div id="main-nav" class="bg-white shadow-sm sticky top-0 z-10 hidden">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex space-x-4">
+            <!-- Onglets pour tous -->
+            <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
+            
+            <!-- Onglets Admin seulement -->
+            <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
+            <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
+            <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
+            <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
+        </div>
+    </div>
+
+    <!-- Conteneur principal des pages -->
+    <main id="page-container" class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ================= PAGE 0: CONNEXION / INSCRIPTION ================= -->
+        <div id="page-login" class="page max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+            
+            <!-- Formulaire de Connexion -->
+            <form id="login-form">
+                <h2 class="text-2xl font-bold text-center mb-6 text-primary-dark">Connexion</h2>
+                <div class="mb-4">
+                    <label for="login-email" class="block text-gray-700 font-medium mb-1">Email</label>
+                    <input type="email" id="login-email" class="form-field" required>
+                </div>
+                <div class="mb-6">
+                    <label for="login-password" class="block text-gray-700 font-medium mb-1">Mot de passe</label>
+                    <input type="password" id="login-password" class="form-field" required>
+                </div>
+                <button type="submit" class="w-full btn btn-primary">
+                    Se connecter
+                </button>
+                <p class="text-center text-sm text-gray-600 mt-4">
+                    Pas de compte ? <a href="#" id="show-signup" class="text-secondary hover:underline">Inscrivez-vous</a>
+                </p>
+            </form>
+
+            <!-- Formulaire d'Inscription (caché par défaut) -->
+            <form id="signup-form" class="hidden">
+                <h2 class="text-2xl font-bold text-center mb-6 text-primary-dark">Inscription</h2>
+                <div class="mb-4">
+                    <label for="signup-email" class="block text-gray-700 font-medium mb-1">Email</glabel>
+                    <input type="email" id="signup-email" class="form-field" required>
+                </div>
+                <div class="mb-6">
+                    <label for="signup-password" class="block text-gray-700 font-medium mb-1">Mot de passe (6 car. min)</label>
+                    <input type="password" id="signup-password" class="form-field" required>
+                </div>
+                <button type="submit" class="w-full btn btn-secondary">
+                    Créer le compte
+                </button>
+                <p class="text-center text-sm text-gray-600 mt-4">
+                    Déjà un compte ? <a href="#" id="show-login" class="text-secondary hover:underline">Connectez-vous</a>
+                </p>
+            </form>
+        </div>
+
+        <!-- ================= PAGE 0.5: EN ATTENTE D'APPROBATION ================= -->
+        <div id="page-pending-approval" class="page hidden max-w-lg mx-auto bg-white p-8 rounded-lg shadow-lg text-center">
+            <h2 class="text-2xl font-bold text-primary-dark mb-4">Compte en attente</h2>
+            <p class="text-gray-700 mb-6">Merci pour votre inscription ! Votre compte est en attente d'approbation par un administrateur. Vous serez notifié par email lorsque votre compte sera activé.</p>
+            <p class="text-sm text-gray-500">Vous pouvez fermer cette page en attendant.</p>
+        </div>
+
+
+        <!-- ================= PAGE 1: SCANNER ================= -->
+        <div id="page-scanner" class="page hidden"> <!-- Page par défaut après connexion -->
+            <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto">
+                <h2 class="text-xl font-bold mb-4 text-center text-primary-dark">Scanner un QR Code</h2>
+                <button id="start-scan-btn" class="w-full btn btn-primary py-3">
+                    Démarrer le Scan
+                </button>
+                <div id="qr-reader" class="mt-4"></div>
+                <button id="stop-scan-btn" class="w-full btn btn-danger py-2 mt-4 hidden">
+                    Arrêter le Scan
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 2: FORMULAIRE D'INTERVENTION ================= -->
+        <div id="page-intervention-form" class="page hidden">
+            <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto">
+                <button id="back-to-scanner" class="text-secondary hover:underline mb-4">&larr; Retour au scanner</button>
+                <h2 id="form-title" class="text-2xl font-bold mb-2 text-primary-dark">Rapport d'intervention</h2>
+                <p id="form-subtitle" class="text-gray-600 mb-6">Veuillez remplir les champs ci-dessous.</p>
+                
+                <form id="intervention-form">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-medium mb-1">Date et Heure</label>
+                        <input type="text" id="form-datetime" class="form-field bg-gray-100" readonly>
+                    </div>
+                    
+                    <!-- Les champs dynamiques du formulaire seront injectés ici -->
+                    <div id="dynamic-form-fields" class="space-y-4"></div>
+
+                    <button type="submit" class="w-full btn btn-primary py-3 mt-6">
+                        Soumettre le rapport
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 3: GESTION DES MAGASINS ================= -->
+        <div id="page-stores" class="page hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Colonne 1: Ajouter Magasin / Appareil -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Ajouter un magasin -->
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Ajouter un Magasin</h2>
+                        <form id="add-store-form">
+                            <div class="mb-4">
+                                <label for="store-name" class="block text-gray-700 font-medium mb-1">Nom du Magasin</label>
+                                <input type="text" id="store-name" class="form-field" required>
+                            </div>
+                            <div class="mb-4">
+                                <label for="store-code" class="block text-gray-700 font-medium mb-1">Code Magasin (Modifiable)</label>
+                                <input type="text" id="store-code" class="form-field" required>
+                            </div>
+                            <button type="submit" class="w-full btn btn-primary">
+                                Enregistrer Magasin
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Ajouter un appareil -->
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Ajouter un Appareil</h2>
+                        <form id="add-equipment-form">
+                            <div class="mb-4">
+                                <label for="equip-store-select" class="block text-gray-700 font-medium mb-1">Magasin</label>
+                                <select id="equip-store-select" class="form-field custom-select" required>
+                                    <option value="">Sélectionnez un magasin</option>
+                                    <!-- Options remplies par JS -->
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label for="equip-name" class="block text-gray-700 font-medium mb-1">Nom de l'appareil</label>
+                                <input type="text" id="equip-name" class="form-field" placeholder="Ex: Chaudière n°1" required>
+                            </div>
+                            <div class="mb-4">
+                                <label for="equip-type" class="block text-gray-700 font-medium mb-1">Type d'appareil</label>
+                                <select id="equip-type" class="form-field custom-select" required>
+                                    <!-- Options remplies par JS -->
+                                </select>
+                            </div>
+                             <div class="mb-4">
+                                <label for="equip-form-select" class="block text-gray-700 font-medium mb-1">Formulaire à lier</label>
+                                <select id="equip-form-select" class="form-field custom-select" required>
+                                    <option value="">Sélectionnez un formulaire</option>
+                                    <!-- Options remplies par JS -->
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full btn btn-secondary">
+                                Ajouter l'Appareil
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Colonne 2: Liste des Magasins et Appareils -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Vos Magasins et Appareils</h2>
+                    
+                    <!-- NOUVELLE BARRE D'ACTIONS DE MASSE -->
+                    <div id="bulk-action-bar" class="hidden bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4 flex flex-wrap gap-2 items-center justify-between">
+                        <div>
+                            <span id="bulk-action-count" class="font-bold">0</span>
+                            <span class="font-medium"> appareil(s) sélectionné(s)</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="bulk-print-btn" class="btn btn-primary text-sm py-1 px-3">Imprimer QR</button>
+                            <button id="bulk-duplicate-btn" class="btn btn-secondary text-sm py-1 px-3">Dupliquer</button>
+                            <button id="bulk-delete-btn" class="btn btn-danger text-sm py-1 px-3">Supprimer</button>
+                            <button id="bulk-deselect-btn" class="text-gray-600 hover:underline text-sm ml-2">Annuler</button>
+                        </div>
+                    </div>
+                    
+                    <div id="stores-list" class="space-y-6">
+                        <!-- Contenu généré par JS -->
+                        <p class="text-gray-500">Aucun magasin enregistré pour le moment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 4: GESTION DES FORMULAIRES ================= -->
+        <div id="page-forms" class="page hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Colonne 1: Créateur de formulaire -->
+                <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg h-fit">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Créer/Modifier un Formulaire</h2>
+                    <form id="create-form-builder">
+                        <input type="hidden" id="form-builder-id">
+                        <div class="mb-4">
+                            <label for="form-builder-title" class="block text-gray-700 font-medium mb-1">Titre du Formulaire</label>
+                            <input type="text" id="form-builder-title" class="form-field" required>
+                        </div>
+                        
+                        <h3 class="font-semibold mb-2 text-primary-dark">Champs du formulaire</h3>
+                        <div id="form-builder-fields" class="space-y-4 mb-4">
+                            <!-- Champs dynamiques ajoutés ici -->
+                        </div>
+
+                        <button type="button" id="add-form-field-btn" class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 mb-4 font-medium">
+                            + Ajouter un champ
+                        </button>
+                        <button type="submit" class="w-full btn btn-primary">
+                            Enregistrer le Formulaire
+                        </button>
+                        <button type="button" id="cancel-edit-form-btn" class="w-full btn btn-gray mt-2 hidden">
+                            Annuler l'édition
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Colonne 2: Liste des formulaires existants -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Formulaires Existants</h2>
+                    <div id="forms-list" class="space-y-4">
+                        <!-- Contenu généré par JS -->
+                        <p class="text-gray-500">Aucun formulaire créé pour le moment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 5: RAPPORTS (Stats) ================= -->
+        <div id="page-reports" class="page hidden">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-primary-dark">Rapports d'Intervention</h2>
+                
+                <!-- Filtres -->
+                <div class="mb-4">
+                    <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par Magasin</label>
+                    <select id="report-filter-store" class="form-field custom-select max-w-xs">
+                        <option value="all">Tous les magasins</option>
+                        <!-- Options remplies par JS -->
+                    </select>
+                </div>
+                
+                <!-- Liste des rapports -->
+                <div id="reports-list" class="divide-y divide-gray-200">
+                    <!-- Contenu généré par JS -->
+                    <p class="text-gray-500 py-4">Aucun rapport soumis pour le moment.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ================= PAGE 6: ADMIN ================= -->
+        <div id="page-admin" class="page hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Colonne 1: Gestion des Utilisateurs -->
+                <div class="bg-white p-6 rounded-lg shadow-lg h-fit">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Gestion des Utilisateurs</h2>
+                    <div id="users-list" class="space-y-3">
+                        <!-- Liste des utilisateurs chargée par JS -->
+                    </div>
+                </div>
+
+                <!-- Colonne 2: Gestion des Types d'Appareils -->
+                <div class="bg-white p-6 rounded-lg shadow-lg h-fit">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Gestion des Types d'Appareils</h2>
+                    
+                    <!-- Onglets Ajout -->
+                    <div class="flex border-b border-gray-200 mb-4">
+                         <button id="tab-model-btn" class="tab-btn-admin flex-1 py-2 font-medium text-sm text-center border-b-2 border-secondary text-secondary">Ajout rapide (Modèles)</button>
+                         <button id="tab-manual-btn" class="tab-btn-admin flex-1 py-2 font-medium text-sm text-center border-b-2 border-transparent text-gray-500">Ajout manuel</button>
+                    </div>
+                    
+                    <!-- Panneau Ajout Modèles -->
+                    <div id="tab-panel-model">
+                        <form id="add-equip-type-model-form" class="space-y-3">
+                             <div>
+                                <label for="equip-type-model-select" class="block text-gray-700 font-medium mb-1">Choisir un modèle</label>
+                                <select id="equip-type-model-select" class="form-field custom-select">
+                                    <option value="">Sélectionnez un modèle...</option>
+                                </select>
+                             </div>
+                             <button type="submit" class="w-full btn btn-primary">Ajouter ce modèle</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Panneau Ajout Manuel -->
+                    <div id="tab-panel-manual" class="hidden">
+                        <form id="add-equip-type-form" class="space-y-3">
+                            <div>
+                                <label for="equip-type-label" class="block text-gray-700 font-medium mb-1">Nom du type</label>
+                                <input type="text" id="equip-type-label" placeholder="ex: Hotte" class="form-field" required>
+                            </div>
+                             <div>
+                                <label for="equip-type-emoji" class="block text-gray-700 font-medium mb-1">Emoji</label>
+                                <input type="text" id="equip-type-emoji" placeholder="ex: 🌬️" class="form-field" required>
+                            </div>
+                            <button type="submit" class="w-full btn btn-primary">Ajouter manuellement</button>
+                        </form>
+                    </div>
+                    
+                    <hr class="my-6">
+                    
+                    <!-- Liste des types -->
+                    <h3 class="text-lg font-semibold mb-3 text-primary-dark">Types existants</h3>
+                    <div id="equip-types-list" class="space-y-2">
+                        <!-- Liste des types chargée par JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal pour afficher le QR Code -->
+    <div id="qr-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl text-center max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <h2 id="qr-modal-title" class="text-xl font-bold mb-4 text-primary-dark">QR Code de l'Appareil</h2>
+            <p id="qr-modal-subtitle" class="text-gray-600 mb-4"></p>
+            
+            <!-- Sélecteur de taille (pour simple) -->
+            <div id="qr-size-select-wrapper" class="mb-4 no-print">
+                <label for="qr-size-select" class="text-sm text-gray-600 mr-2">Taille:</label>
+                <select id="qr-size-select" class="text-sm px-2 py-1 border border-gray-300 rounded-lg bg-white custom-select">
+                    <option value="128">Petit</option>
+                    <option value="256" selected>Moyen</option>
+                    <option value="512">Grand</option>
+                </select>
+            </div>
+            
+            <!-- Le QR code (ou la grille) sera généré ici -->
+            <div id="qr-modal-content" class="flex-grow overflow-y-auto p-2">
+                <!-- Contenu généré par JS -->
+            </div>
+            
+            <div class="flex space-x-2 no-print mt-4">
+                <button id="print-qr-btn" class="w-full btn btn-primary">
+                    Imprimer
+                </button>
+                <button id="close-qr-modal" class="w-full btn btn-gray">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'édition de Magasin -->
+    <div id="edit-store-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier le Magasin</h2>
+            <form id="edit-store-form">
+                <input type="hidden" id="edit-store-id">
+                <div class="mb-4">
+                    <label for="edit-store-name" class="block text-gray-700 font-medium mb-1">Nom du Magasin</label>
+                    <input type="text" id="edit-store-name" class="form-field" required>
+                </div>
+                <div class="mb-4">
+                    <label for="edit-store-code" class="block text-gray-700 font-medium mb-1">Code Magasin</label>
+                    <input type="text" id="edit-store-code" class="form-field" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal d'édition d'Appareil -->
+    <div id="edit-equip-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier l'Appareil</h2>
+            <form id="edit-equip-form">
+                <input type="hidden" id="edit-equip-id">
+                <div class="mb-4">
+                    <label for="edit-equip-name" class="block text-gray-700 font-medium mb-1">Nom de l'appareil</label>
+                    <input type="text" id="edit-equip-name" class="form-field" required>
+                </div>
+                 <div class="mb-4">
+                    <label for="edit-equip-form-select" class="block text-gray-700 font-medium mb-1">Formulaire à lier</label>
+                    <select id="edit-equip-form-select" class="form-field custom-select" required>
+                        <option value="">Sélectionnez un formulaire</option>
+                        <!-- Options remplies par JS -->
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MODALE: Édition Type d'Appareil -->
+    <div id="edit-equip-type-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier le Type d'Appareil</h2>
+            <form id="edit-equip-type-form">
+                <input type="hidden" id="edit-equip-type-id">
+                <div class="mb-4">
+                    <label for="edit-equip-type-label" class="block text-gray-700 font-medium mb-1">Nom du type</label>
+                    <input type="text" id="edit-equip-type-label" class="form-field" required>
+                </div>
+                 <div class="mb-4">
+                    <label for="edit-equip-type-emoji" class="block text-gray-700 font-medium mb-1">Emoji</label>
+                    <input type="text" id="edit-equip-type-emoji" class="form-field" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmation (Générique) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h2 id="confirm-title" class="text-xl font-bold mb-4 text-primary-dark">Êtes-vous sûr ?</h2>
+            <p id="confirm-text" class="text-gray-600 mb-6">Cette action est irréversible.</p>
+            <div class="flex justify-end space-x-2">
+                <button id="confirm-cancel-btn" class="btn btn-gray">
+                    Annuler
+                </button>
+                <button id="confirm-action-btn" class="btn btn-danger">
+                    Confirmer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour les messages (erreurs, succès) -->
+    <div id="message-modal" class="fixed top-5 right-5 bg-red-600 text-white p-4 rounded-lg shadow-xl z-50 hidden transition-opacity duration-300" role="alert">
+        <p id="message-text"></p>
+    </div>
+
+    <!-- NOUVELLE MODALE: Duplication d'Appareils -->
+    <div id="duplicate-equip-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Dupliquer les Appareils</h2>
+            <p class="text-gray-600 mb-4">Sélectionnez les magasins de destination où vous souhaitez copier les <span id="duplicate-count" class="font-bold">0</span> appareil(s) sélectionné(s).</p>
+            <form id="duplicate-equip-form">
+                <div id="duplicate-store-list" class="space-y-2 max-h-60 overflow-y-auto border p-3 rounded-lg mb-4">
+                    <!-- Liste des magasins (checkboxes) générée par JS -->
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-secondary">
+                        Dupliquer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ================= SCRIPT ================= -->
+    <script type="module">
+        // Importation des modules Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            signOut,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            deleteUser
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            addDoc, 
+            collection, 
+            query, 
+            where, 
+            onSnapshot,
+            getDocs,
+            deleteDoc,
+            setLogLevel,
+            updateDoc,
+            writeBatch,
+            limit
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // SDK pour le stockage de fichiers (photos, etc.) - Futur
+        /*
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        */
+
+        // --- Configuration Firebase ---
+        // REMPLACEZ PAR VOTRE PROPRE CONFIGURATION FIREBASE
+        const firebaseConfig = {
+          apiKey: "AIzaSyCJ3aNGOtir7Tank7Lxm5NEjUvHpsowOtE",
+          authDomain: "pour-mich.firebaseapp.com",
+          projectId: "pour-mich",
+          storageBucket: "pour-mich.firebasestorage.app",
+          messagingSenderId: "304617036411",
+          appId: "1:304617036411:web:7cd6b421e3bd32f78d60de",
+          measurementId: "G-5PBQJN1DVR"
+        };
+        // --- FIN DE LA CONFIGURATION ---
+
+        const appId = 'gest-appareils-public'; // Nom de la collection principale
+
+        // --- Variables Globales ---
+        let app, auth, db, storage;
+        let currentUserId = null;
+        let currentUserRole = null; // 'admin', 'user', ou 'new'
+        let isAuthReady = false;
+
+        // Collections Firestore
+        let usersCollection, storesCollection, equipmentCollection, formsCollection, reportsCollection, equipmentTypesCollection;
+
+        // Etat de l'application (Cache local)
+        let html5QrCode;
+        let currentScannedData = null;
+        let allStores = [];
+        let allEquipment = [];
+        let allForms = [];
+        let allReports = [];
+        let allEquipmentTypes = [];
+        let equipmentListenerReady = false; // Flag pour gérer le chargement
+        let selectedEquipmentIds = new Set(); // NOUVEAU: Pour la sélection multiple
+        
+        // Listeners (pour les arrêter)
+        let unsubForms = () => {}, unsubStores = () => {}, unsubEquipment = () => {}, unsubReports = () => {}, unsubUsers = () => {}, unsubEquipmentTypes = () => {};
+        
+        // Callback pour la modal de confirmation
+        let _confirmCallback = null; 
+
+        // Modèles de types d'appareils
+        const equipmentTypeModels = {
+            "Chauffage": "🔥", "Climatisation": "❄️", "Ventilation": "🌬️", "Électricité": "⚡",
+            "Plomberie": "💧", "Sécurité": "🛡️", "Incendie": " extinguisher", "Ascenseur": "↕️",
+            "Porte Auto": "🚪", "Froid": "🧊", "Cuisine": "🍳", "Lumière": "💡",
+            "Extincteur": "🧯", "Caméra": "📷", "Alarme": "🚨"
+        };
+        
+        // Fonction utilitaire pour récupérer un élément (évite les répétitions)
+        function getEl(id) {
+            const el = document.getElementById(id);
+            if (!el) {
+                console.warn(`Élément introuvable: #${id}.`);
+            }
+            return el;
+        }
+
+        // --- Initialisation ---
+
+        function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                // storage = getStorage(app); // Futur
+                setLogLevel('Debug'); // Pour voir les logs Firestore
+
+                // Définition des chemins de collection "publics"
+                const basePath = `artifacts/${appId}/public/data`;
+                usersCollection = collection(db, `${basePath}/users`);
+                storesCollection = collection(db, `${basePath}/stores`);
+                equipmentCollection = collection(db, `${basePath}/equipment`);
+                formsCollection = collection(db, `${basePath}/forms`);
+                reportsCollection = collection(db, `${basePath}/reports`);
+                equipmentTypesCollection = collection(db, `${basePath}/equipmentTypes`);
+
+                setupAuthListener();
+                initializeAppEventListeners(); // REFACTOR: Appel de la fonction principale des écouteurs
+                populateModelSelect();
+                
+            } catch (error) {
+                console.error("Erreur d'initialisation Firebase:", error);
+                showMessage("Erreur critique d'initialisation.", "error");
+            }
+        }
+        
+        async function setupAuthListener() {
+            const authButton = getEl('auth-button');
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    // L'utilisateur est connecté
+                    currentUserId = user.uid;
+                    isAuthReady = true;
+                    console.log("Utilisateur connecté:", currentUserId);
+                    
+                    // Récupérer le rôle de l'utilisateur depuis Firestore
+                    const userDocRef = doc(usersCollection, user.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+
+                    if (userDocSnap.exists()) {
+                        currentUserRole = userDocSnap.data().role;
+                        
+                        // Gérer les rôles
+                        if (currentUserRole === 'new') {
+                            // Rôle "new" -> Bloquer sur la page d'attente
+                            initializeAppUI('new', user.email);
+                        } else {
+                            // Rôle "user" ou "admin"
+                            initializeAppUI(currentUserRole, user.email);
+                        }
+                        
+                    } else {
+                        // Cas étrange, l'utilisateur est authentifié mais n'a pas de document
+                        console.error("Erreur: Document utilisateur introuvable pour l'UID:", user.uid);
+                        showMessage("Erreur de profil, reconnexion...", "error");
+                        await signOut(auth);
+                    }
+
+                } else {
+                    // L'utilisateur est déconnecté
+                    currentUserId = null;
+                    currentUserRole = null;
+                    isAuthReady = false;
+                    console.log("Utilisateur déconnecté.");
+
+                    // Afficher la page de connexion, cacher le reste
+                    getEl('main-header').classList.add('hidden');
+                    getEl('main-nav').classList.add('hidden');
+                    hideAllPages();
+                    getEl('page-login').classList.remove('hidden');
+                    
+                    stopDataListeners(); // Arrêter les écouteurs de données
+                }
+            });
+
+            if (authButton) authButton.addEventListener('click', () => {
+                if (auth.currentUser) {
+                    signOut(auth);
+                }
+            });
+        }
+        
+        // Affiche l'UI en fonction du rôle
+        function initializeAppUI(role, email) {
+            console.log(`Initialisation de l'UI pour: ${email} (Rôle: ${role})`);
+            
+            // Cacher la page de connexion
+            hideAllPages();
+            
+            // Si le rôle est "new", afficher la page d'attente et cacher le header/nav
+            if (role === 'new') {
+                getEl('page-pending-approval').classList.remove('hidden');
+                getEl('main-header').classList.add('hidden');
+                getEl('main-nav').classList.add('hidden');
+                return; // Arrêter l'initialisation ici
+            }
+            
+            // Pour "user" et "admin", afficher l'application
+            getEl('main-header').classList.remove('hidden');
+            getEl('main-nav').classList.remove('hidden');
+            
+            // Afficher infos utilisateur
+            getEl('user-email-display').textContent = email;
+            getEl('user-email-display').classList.remove('hidden');
+            const roleDisplay = getEl('user-role-display');
+            roleDisplay.textContent = role;
+            roleDisplay.classList.remove('hidden');
+            if (role === 'admin') {
+                roleDisplay.classList.add('bg-blue-100', 'text-blue-800');
+                roleDisplay.classList.remove('bg-gray-100', 'text-gray-800');
+            } else { // 'user'
+                roleDisplay.classList.add('bg-green-100', 'text-green-800');
+                roleDisplay.classList.remove('bg-blue-100', 'text-blue-800');
+            }
+
+            // Gérer la visibilité des onglets et des pages
+            const adminOnlyElements = document.querySelectorAll('.admin-only');
+            if (role === 'admin') {
+                adminOnlyElements.forEach(el => el.classList.remove('hidden'));
+            } else {
+                adminOnlyElements.forEach(el => el.classList.add('hidden'));
+            }
+
+            // Démarrer les écouteurs de données
+            loadAllData(role);
+            
+            // Naviguer vers la page par défaut
+            navigateTo('scanner'); 
+        }
+        
+        // --- Chargement des données (Real-time) ---
+        
+        function stopDataListeners() {
+            console.log("Arrêt des listeners...");
+            unsubForms();
+            unsubStores();
+            unsubEquipment();
+            unsubReports();
+            unsubUsers();
+            unsubEquipmentTypes();
+        }
+
+        function loadAllData(role) {
+            if (!isAuthReady) {
+                 console.warn("L'authentification n'est pas prête, chargement annulé.");
+                 return;
+            }
+            
+            console.log("Démarrage des listeners de données...");
+            stopDataListeners(); // S'assurer que les anciens sont arrêtés
+
+            // 1. Charger les formulaires
+            unsubForms = onSnapshot(formsCollection, (snapshot) => {
+                allForms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (role === 'admin') renderFormsList();
+                updateAllSelects();
+                console.log("Formulaires chargés:", allForms.length);
+            }, (error) => console.error("Erreur chargement formulaires:", error));
+            
+            // 2. Charger les types d'appareils
+             unsubEquipmentTypes = onSnapshot(equipmentTypesCollection, (snapshot) => {
+                allEquipmentTypes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (role === 'admin') renderEquipmentTypesList();
+                populateEquipmentTypeSelects();
+                console.log("Types d'appareils chargés:", allEquipmentTypes.length);
+            }, (error) => console.error("Erreur chargement types appareils:", error));
+
+            // 3. Charger les magasins
+            unsubStores = onSnapshot(storesCollection, (snapshot) => {
+                allStores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateAllSelects();
+                renderReportsList(); // Mettre à jour les noms de magasins dans les rapports
+                console.log("Magasins chargés:", allStores.length);
+                if (equipmentListenerReady && role === 'admin') renderStoresList();
+            }, (error) => console.error("Erreur chargement magasins:", error));
+            
+            // 4. Charger les équipements
+            unsubEquipment = onSnapshot(equipmentCollection, (snapshot) => {
+                allEquipment = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                equipmentListenerReady = true;
+                console.log("Équipements chargés:", allEquipment.length);
+                if (role === 'admin') renderStoresList(); 
+            }, (error) => console.error("Erreur chargement équipements:", error));
+
+            // 5. Charger les rapports (Stats)
+            unsubReports = onSnapshot(query(reportsCollection), (snapshot) => {
+                allReports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Trier par date (plus récent en premier)
+                allReports.sort((a, b) => {
+                    const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(0);
+                    const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(0);
+                    return dateB - dateA;
+                });
+                console.log("Rapports chargés:", allReports.length);
+                renderReportsList();
+            }, (error) => console.error("Erreur chargement rapports:", error));
+            
+            // 6. Charger les utilisateurs (Admin seulement)
+            if (role === 'admin') {
+                unsubUsers = onSnapshot(usersCollection, (snapshot) => {
+                    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderUsersList(users);
+                    console.log("Utilisateurs chargés:", users.length);
+                }, (error) => console.error("Erreur chargement utilisateurs:", error));
+            }
+        }
+
+        // --- Remplissage des Selects (Menus déroulants) ---
+        
+        function updateAllSelects() {
+            const storeSelects = [
+                getEl('equip-store-select'),
+                getEl('report-filter-store')
+            ];
+            
+            const formSelects = [
+                getEl('equip-form-select'),
+                getEl('edit-equip-form-select')
+            ];
+
+            storeSelects.forEach(sel => {
+                if(sel) {
+                    const firstOptionValue = sel.options[0] ? sel.options[0].value : "all";
+                    const firstOptionText = sel.options[0] ? sel.options[0].text : "Tous les magasins";
+                    
+                    sel.innerHTML = `<option value="${firstOptionValue}">${firstOptionText}</option>`; // Garder la première option
+                    
+                    allStores.sort((a,b) => a.name.localeCompare(b.name)).forEach(store => {
+                        sel.innerHTML += `<option value="${store.id}">${store.name} (${store.code})</option>`;
+                    });
+                }
+            });
+            
+            formSelects.forEach(sel => {
+                 if(sel) {
+                    const firstOption = sel.options[0] ? sel.options[0].outerHTML : '<option value="">Sélectionnez</option>';
+                    sel.innerHTML = firstOption;
+                    allForms.sort((a,b) => a.title.localeCompare(b.title)).forEach(form => {
+                        sel.innerHTML += `<option value="${form.id}">${form.title}</option>`;
+                    });
+                 }
+            });
+        }
+        
+        // Remplit les listes déroulantes des types d'appareils
+        function populateEquipmentTypeSelects() {
+            const selects = [
+                getEl('equip-type'),
+                getEl('edit-equip-type') // Note: Cet ID n'est pas dans le HTML, mais on le garde au cas où
+            ];
+            
+            let optionsHtml = '<option value="">Sélectionnez un type</option>'; // Ajout d'une option par défaut
+            allEquipmentTypes.sort((a,b) => a.label.localeCompare(b.label)).forEach(type => {
+                optionsHtml += `<option value="${type.id}">${type.emoji} ${type.label}</option>`;
+            });
+            
+            selects.forEach(sel => {
+                if(sel) sel.innerHTML = optionsHtml;
+            });
+        }
+        
+        // Remplit la liste des modèles de type d'appareil
+        function populateModelSelect() {
+            const select = getEl('equip-type-model-select');
+            if (!select) return;
+            
+            const sortedModels = Object.entries(equipmentTypeModels)
+                                     .sort((a, b) => a[0].localeCompare(b[0]));
+            
+            for (const [label, emoji] of sortedModels) {
+                select.innerHTML += `<option value="${label},${emoji}">${emoji} ${label}</option>`;
+            }
+        }
+
+
+        // --- Rendu HTML ---
+
+        // Rendu de la liste des magasins et de leurs appareils
+        function renderStoresList() {
+            const listContainer = getEl('stores-list');
+            if (!listContainer) return;
+
+            if (allStores.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">Aucun magasin enregistré pour le moment.</p>';
+                return;
+            }
+
+            listContainer.innerHTML = allStores
+                .sort((a,b) => a.name.localeCompare(b.name)) // Trier les magasins par nom
+                .map(store => {
+                    const equipmentList = allEquipment
+                        .filter(e => e.storeId === store.id)
+                        .sort((a,b) => a.name.localeCompare(b.name)); // Trier les appareils par nom
+                        
+                    return `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+                            <div>
+                                <h3 class="text-lg font-bold text-primary">${store.name}</h3>
+                                <p class="text-sm text-gray-500">Code: ${store.code}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button class="edit-store-btn text-sm bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-store-id="${store.id}">Modifier</button>
+                                <button class="delete-store-btn text-sm btn-danger text-white px-3 py-1 rounded-lg hover:bg-red-600 font-medium" data-store-id="${store.id}">Supprimer</button>
+                            </div>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <h4 class="font-semibold text-gray-700">Appareils :</h4>
+                            ${equipmentList.length > 0 ? equipmentList.map(equip => {
+                                const equipType = allEquipmentTypes.find(t => t.id === equip.type);
+                                const emoji = equipType ? equipType.emoji : '⚙️';
+                                const isChecked = selectedEquipmentIds.has(equip.id) ? 'checked' : '';
+                                return `
+                                <div class="flex justify-between items-center p-3 bg-gray-100 rounded-md">
+                                    <!-- NOUVELLE CHECKBOX -->
+                                    <div class="flex items-center">
+                                        <input type="checkbox" class="equip-select-checkbox h-5 w-5 rounded mr-3" data-equip-id="${equip.id}" ${isChecked}>
+                                        <div>
+                                            <span class="text-2xl mr-2">${emoji}</span>
+                                            <span class="font-medium">${equip.name}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2 justify-end">
+                                        <button class="edit-equip-btn text-xs bg-yellow-500 text-white px-2 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-equip-id="${equip.id}">Modifier</button>
+                                        <button class="delete-equip-btn text-xs btn-danger text-white px-2 py-1 rounded-lg hover:bg-red-600 font-medium" data-equip-id="${equip.id}">Suppr.</button>
+                                        <button class="generate-qr-btn bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-50 font-medium"
+                                                data-equip-id="${equip.id}"
+                                                data-store-id="${store.id}"
+                                                data-form-id="${equip.formId}"
+                                                data-store-name="${store.name}"
+                                                data-equip-name="${equip.name}">
+                                            Générer QR
+                                        </button>
+                                    </div>
+                                </div>
+                            `}).join('') : '<p class="text-sm text-gray-500">Aucun appareil ajouté.</p>'}
+                        </div>
+                    </div>
+                `;
+                })
+                .join('');
+        }
+        
+        // Rendu de la liste des formulaires
+        function renderFormsList() {
+            const listContainer = getEl('forms-list');
+             if (!listContainer) return;
+
+            if (allForms.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">Aucun formulaire créé pour le moment.</p>';
+                return;
+            }
+            listContainer.innerHTML = allForms
+                .sort((a,b) => a.title.localeCompare(b.title)) // Trier par titre
+                .map(form => `
+                <div class="border border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-lg font-bold text-primary">${form.title}</h3>
+                            <ul class="list-disc list-inside mt-2 text-sm text-gray-600">
+                                ${form.fields.map(f => `<li>${f.label} ${f.required ? '(Req.)' : ''} - [${f.type}]</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:space-x-2 flex-shrink-0">
+                             <button class="edit-form-btn text-yellow-600 hover:underline text-sm mt-1" data-form-id="${form.id}">
+                                Modifier
+                            </button>
+                            <button class="delete-form-btn text-danger hover:underline text-sm mt-1" data-form-id="${form.id}">
+                                Supprimer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Rendu de la liste des rapports (Stats)
+        function renderReportsList() {
+            const listContainer = getEl('reports-list');
+            const filterSelect = getEl('report-filter-store');
+            
+            if (!listContainer || !filterSelect) return;
+            
+            const filterStoreId = filterSelect.value;
+            
+            const filteredReports = allReports.filter(report => 
+                filterStoreId === 'all' || report.storeId === filterStoreId
+            );
+
+            if (filteredReports.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 py-4">Aucun rapport ne correspond à ce filtre.</p>';
+                return;
+            }
+
+            listContainer.innerHTML = filteredReports.map(report => {
+                const store = allStores.find(s => s.id === report.storeId);
+                const storeName = store ? store.name : `ID: ${report.storeId}`;
+                const reportDate = report.timestamp?.toDate ? report.timestamp.toDate().toLocaleString('fr-FR') : 'Date inconnue';
+                
+                // NOUVELLE LOGIQUE: Afficher les données de formulaire complexes
+                const dataHtml = Object.entries(report.data).map(([key, value]) => {
+                    let displayValue;
+                    if (Array.isArray(value)) {
+                        // Pour les checkboxes (choix multiples)
+                        displayValue = `<ul>${value.map(v => `<li class="ml-4 list-disc">${v}</li>`).join('')}</ul>`;
+                    } else {
+                        // Pour tout le reste (texte, radio, select)
+                        displayValue = `<span class="font-medium">${String(value)}</span>`; // Assurer que c'est une chaîne
+                    }
+                    return `<li><strong>${key}:</strong> ${displayValue}</li>`;
+                }).join('');
+
+                return `
+                    <div class="py-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <div>
+                                <span class="font-bold text-lg text-primary">${storeName}</span>
+                                <span class="text-sm text-gray-500 ml-2">(Appareil ID: ${report.equipmentId.substring(0, 5)}...)</span>
+                            </div>
+                            <span class="text-sm text-gray-500">${reportDate}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">Soumis par: <span class="font-mono text-xs">${report.userEmail || report.userId}</span></p>
+                        <div class="bg-gray-50 p-3 rounded-md text-sm">
+                            <h4 class="font-semibold mb-1">Données soumises:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                ${dataHtml}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Rendu de la liste des utilisateurs (Admin)
+        function renderUsersList(users) {
+            const listContainer = getEl('users-list');
+            if (!listContainer) return;
+            
+            listContainer.innerHTML = users
+                .sort((a,b) => a.email.localeCompare(b.email)) // Trier par email
+                .map(user => {
+                const isCurrentUser = user.id === currentUserId;
+                const userFonction = user.fonction || ''; // Gérer si le champ n'existe pas encore
+                
+                let roleSelectHtml = '';
+                if (user.role === 'new') {
+                     roleSelectHtml = `
+                        <option value="new" ${user.role === 'new' ? 'selected' : ''}>Nouveau (En attente)</option>
+                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>Utilisateur</option>
+                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                     `;
+                } else {
+                     roleSelectHtml = `
+                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>Utilisateur</option>
+                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                     `;
+                }
+                
+                return `
+                <div class="user-row p-3 ${isCurrentUser ? 'bg-blue-50' : (user.role === 'new' ? 'bg-yellow-50' : 'bg-gray-50')} rounded-md space-y-2">
+                    <p class="font-medium text-sm">${user.email}</p>
+                    <div class="flex flex-col sm:flex-row sm:items-end sm:space-x-2 space-y-2 sm:space-y-0">
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-gray-500">Fonction</label>
+                            <input type="text" class="form-field text-sm py-1" data-key="fonction" value="${userFonction}" placeholder="ex: Tech, Ingénieur">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-gray-500">Rôle</label>
+                            <select class="form-field custom-select text-sm py-1" data-key="role" ${isCurrentUser ? 'disabled' : ''}>
+                                ${roleSelectHtml}
+                            </select>
+                        </div>
+                        <button class="save-user-btn btn btn-primary text-sm py-1" data-user-id="${user.id}" ${isCurrentUser ? 'disabled' : ''}>
+                            OK
+                        </button>
+                        <button class="delete-user-btn btn btn-danger text-sm py-1" data-user-id="${user.id}" ${isCurrentUser ? 'disabled' : ''}>
+                            Suppr.
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+        
+        // Rendu de la liste des types d'appareils (Admin)
+        function renderEquipmentTypesList() {
+            const listContainer = getEl('equip-types-list');
+            if (!listContainer) return; 
+
+            if (allEquipmentTypes.length === 0) {
+                listContainer.innerHTML = '<p class="text-sm text-gray-500">Aucun type d\'appareil créé.</p>';
+                return;
+            }
+
+            listContainer.innerHTML = allEquipmentTypes
+                .sort((a, b) => a.label.localeCompare(b.label)) // Trier par nom
+                .map(type => {
+                return `
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                    <div>
+                        <span class="text-xl mr-2">${type.emoji}</span>
+                        <span class="font-medium text-sm">${type.label}</span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button class="edit-equip-type-btn text-yellow-600 hover:underline text-xs" data-type-id="${type.id}">
+                            Modifier
+                        </button>
+                        <button class="delete-equip-type-btn text-danger hover:underline text-xs" data-type-id="${type.id}">
+                            Supprimer
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+        
+        // Rendu du formulaire d'intervention dynamique
+        function renderInterventionForm(formId) {
+            const form = allForms.find(f => f.id === formId);
+            const container = getEl('dynamic-form-fields');
+            
+            if (!form) {
+                container.innerHTML = `<p class="text-danger">Erreur: Formulaire (ID: ${formId}) introuvable.</p>`;
+                return;
+            }
+
+            getEl('form-title').textContent = form.title;
+            container.innerHTML = form.fields.map(field => {
+                const isRequired = field.required ? 'required' : '';
+                const fieldId = `form-field-${field.label.replace(/\s+/g, '-')}`;
+                const options = (field.options || "").split(',').map(opt => opt.trim()).filter(opt => opt.length > 0);
+
+                let inputHtml = '';
+                const fieldWrapper = (content) => `
+                    <div>
+                        <label for="${fieldId}" class="block text-gray-700 font-medium mb-1">
+                            ${field.label} ${field.required ? '<span class="text-danger">*</span>' : ''}
+                        </label>
+                        ${content}
+                    </div>`;
+
+                switch (field.type) {
+                    case 'textarea':
+                        inputHtml = fieldWrapper(`<textarea id="${fieldId}" name="${field.label}" class="form-field" rows="3" ${isRequired}></textarea>`);
+                        break;
+                    case 'number':
+                        inputHtml = fieldWrapper(`<input type="number" id="${fieldId}" name="${field.label}" class="form-field" ${isRequired}>`);
+                        break;
+                    case 'select':
+                        inputHtml = fieldWrapper(`
+                            <select id="${fieldId}" name="${field.label}" class="form-field custom-select" ${isRequired}>
+                                <option value="">-- Sélectionnez une option --</option>
+                                ${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                            </select>
+                        `);
+                        break;
+                    case 'radio':
+                        inputHtml = fieldWrapper(`
+                            <div class="mt-2 space-y-2">
+                                ${options.map((opt, index) => `
+                                    <label class="flex items-center">
+                                        <input type="radio" id="${fieldId}-${index}" name="${field.label}" value="${opt}" class="mr-2" ${isRequired}>
+                                        <span>${opt}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        `);
+                        break;
+                    case 'checkbox':
+                        // Pour les checkboxes, le name est un tableau
+                        inputHtml = fieldWrapper(`
+                            <div class="mt-2 space-y-2">
+                                ${options.map((opt, index) => `
+                                    <label class="flex items-center">
+                                        <input type="checkbox" id="${fieldId}-${index}" name="${field.label}" value="${opt}" class="mr-2 rounded">
+                                        <span>${opt}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        `);
+                        break;
+                    case 'text':
+                    default:
+                        inputHtml = fieldWrapper(`<input type="text" id="${fieldId}" name="${field.label}" class="form-field" ${isRequired}>`);
+                }
+                
+                return inputHtml;
+            }).join('');
+        }
+
+        // --- REFACTOR: Configuration des Écouteurs d'Événements ---
+
+        // Fonction principale qui attache tous les écouteurs statiques au démarrage.
+        function initializeAppEventListeners() {
+            // Authentification
+            setupAuthEventListeners();
+            
+            // Navigation principale
+            setupNavigationEventListeners();
+            
+            // Page Magasins (Formulaires et listes)
+            setupStorePageEventListeners();
+            
+            // Page Formulaires (Form Builder)
+            setupFormBuilderEventListeners();
+
+            // Page Intervention
+            setupInterventionEventListeners();
+            
+            // Page Scanner
+            setupScannerEventListeners();
+            
+            // Page Admin
+            setupAdminEventListeners();
+            
+            // Page Rapports
+            setupReportEventListeners();
+            
+            // Modales
+            setupModalEventListeners();
+        }
+
+        // Groupe: Authentification
+        function setupAuthEventListeners() {
+            getEl('show-signup').addEventListener('click', (e) => {
+                e.preventDefault();
+                getEl('login-form').classList.add('hidden');
+                getEl('signup-form').classList.remove('hidden');
+            });
+            
+            getEl('show-login').addEventListener('click', (e) => {
+                e.preventDefault();
+                getEl('login-form').classList.remove('hidden');
+                getEl('signup-form').classList.add('hidden');
+            });
+
+            getEl('signup-form').addEventListener('submit', handleSignup);
+            getEl('login-form').addEventListener('submit', handleLogin);
+        }
+
+        // Groupe: Navigation
+        function setupNavigationEventListeners() {
+            getEl('main-nav').addEventListener('click', (e) => {
+                if (e.target.classList.contains('nav-tab')) {
+                    const pageId = e.target.dataset.page;
+                    navigateTo(pageId);
+                }
+            });
+        }
+        
+        // Groupe: Page Magasins
+        function setupStorePageEventListeners() {
+            // Formulaires d'ajout
+            getEl('add-store-form').addEventListener('submit', handleAddStore);
+            getEl('add-equipment-form').addEventListener('submit', handleAddEquipment);
+
+            // Clics sur la liste (délégation d'événements)
+            getEl('stores-list').addEventListener('click', handleStoresListClick);
+            // NOUVEAU: Écouteur pour les checkboxes
+            getEl('stores-list').addEventListener('change', handleEquipSelectChange);
+            
+            // Soumission des modales d'édition
+            getEl('edit-store-form').addEventListener('submit', handleEditStore);
+            getEl('edit-equip-form').addEventListener('submit', handleEditEquipment);
+            
+            // NOUVEAU: Écouteurs pour la barre d'actions de masse
+            getEl('bulk-print-btn').addEventListener('click', handleBulkPrintClick);
+            getEl('bulk-duplicate-btn').addEventListener('click', handleBulkDuplicateClick);
+            getEl('bulk-delete-btn').addEventListener('click', handleBulkDeleteClick);
+            getEl('bulk-deselect-btn').addEventListener('click', handleDeselectAll);
+            
+            // NOUVEAU: Soumission de la modale de duplication
+            getEl('duplicate-equip-form').addEventListener('submit', handleSubmitDuplicate);
+        }
+        
+        // Groupe: Page Formulaires (Form Builder)
+        function setupFormBuilderEventListeners() {
+            getEl('create-form-builder').addEventListener('submit', handleSaveForm);
+            getEl('cancel-edit-form-btn').addEventListener('click', resetFormBuilder);
+            getEl('add-form-field-btn').addEventListener('click', () => {
+                addFormFieldToBuilder(getEl('form-builder-fields'));
+            });
+
+            // Délégation pour les champs dynamiques du builder
+            const fieldsContainer = getEl('form-builder-fields');
+            fieldsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-field-btn')) handleRemoveField(e);
+                if (e.target.classList.contains('add-option-btn')) handleAddOption(e);
+                if (e.target.classList.contains('remove-option-btn')) handleRemoveOption(e);
+            });
+            fieldsContainer.addEventListener('change', handleFieldTypeChange);
+            
+            // Délégation pour la liste des formulaires existants
+            getEl('forms-list').addEventListener('click', handleFormsListClick);
+        }
+        
+        // Groupe: Page Intervention
+        function setupInterventionEventListeners() {
+            getEl('intervention-form').addEventListener('submit', handleSubmitIntervention);
+            getEl('back-to-scanner').addEventListener('click', () => {
+                navigateTo('scanner');
+                currentScannedData = null; // Réinitialiser
+            });
+        }
+        
+        // Groupe: Page Scanner
+        function setupScannerEventListeners() {
+            getEl('start-scan-btn').addEventListener('click', startScan);
+            getEl('stop-scan-btn').addEventListener('click', stopScan);
+        }
+        
+        // Groupe: Page Admin
+        function setupAdminEventListeners() {
+            // Délégation pour la liste des utilisateurs
+            getEl('users-list').addEventListener('click', handleUsersListClick);
+            
+            // Onglets pour type d'appareil
+            getEl('tab-model-btn').addEventListener('click', showAdminTabModel);
+            getEl('tab-manual-btn').addEventListener('click', showAdminTabManual);
+            
+            // Formulaires d'ajout de type
+            getEl('add-equip-type-model-form').addEventListener('submit', handleAddEquipTypeModel);
+            getEl('add-equip-type-form').addEventListener('submit', handleAddEquipTypeManual);
+
+            // Délégation pour la liste des types
+            getEl('equip-types-list').addEventListener('click', handleEquipTypesListClick);
+            
+            // Soumission modale édition type
+            getEl('edit-equip-type-form').addEventListener('submit', handleEditEquipType);
+        }
+        
+        // Groupe: Page Rapports
+        function setupReportEventListeners() {
+            getEl('report-filter-store').addEventListener('change', renderReportsList);
+        }
+        
+        // Groupe: Modales
+        function setupModalEventListeners() {
+            // Boutons de fermeture génériques
+            document.querySelectorAll('.modal-close-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.target.closest('.fixed').classList.add('hidden');
+                });
+            });
+            
+            // Modale QR Code
+            getEl('qr-size-select').addEventListener('change', () => {
+                 // Si on change la taille, on regénère le QR simple (s'il y a des données)
+                 const simpleData = JSON.parse(getEl('qr-modal-content').dataset.simpleData || 'null');
+                 if (simpleData) {
+                    generateSingleQrCode(simpleData.data, simpleData.equipName, simpleData.storeName);
+                 }
+            });
+            getEl('close-qr-modal').addEventListener('click', () => {
+                 getEl('qr-modal').classList.add('hidden');
+                 getEl('qr-modal-content').dataset.simpleData = null; // Nettoyer
+            });
+            getEl('print-qr-btn').addEventListener('click', () => window.print());
+            
+            // Modale de Confirmation
+            getEl('confirm-action-btn').addEventListener('click', () => {
+                if (typeof _confirmCallback === 'function') {
+                    _confirmCallback();
+                }
+                _confirmCallback = null;
+                getEl('confirm-modal').classList.add('hidden');
+            });
+            getEl('confirm-cancel-btn').addEventListener('click', () => {
+                _confirmCallback = null;
+                getEl('confirm-modal').classList.add('hidden');
+            });
+        }
+
+        // --- REFACTOR: Logique Métier (Handlers d'événements) ---
+
+        // Handler: Inscription
+        async function handleSignup(e) {
+            e.preventDefault();
+            const email = getEl('signup-email').value;
+            const password = getEl('signup-password').value;
+
+            try {
+                // 1. Créer l'utilisateur dans Auth
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                console.log("Utilisateur créé dans Auth:", user.uid);
+                
+                // 2. Rôle "new" par défaut
+                const newRole = 'new';
+                console.log(`Attribution du rôle: ${newRole}`);
+                
+                // 3. Créer le document utilisateur dans Firestore
+                await setDoc(doc(usersCollection, user.uid), {
+                    email: user.email,
+                    role: newRole,
+                    fonction: ""
+                });
+                
+                showMessage(`Compte créé avec succès ! Il est en attente d'approbation.`, 'success');
+                await signOut(auth); // Déconnecter l'utilisateur
+                e.target.reset(); // Vider le formulaire
+                getEl('show-login').click(); // Revenir au formulaire de connexion
+                
+            } catch (error) {
+                console.error("Erreur d'inscription:", error);
+                showMessage(`Erreur: ${error.message}`, "error");
+            }
+        }
+        
+        // Handler: Connexion
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = getEl('login-email').value;
+            const password = getEl('login-password').value;
+            
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // onAuthStateChanged s'occupe du reste
+            } catch (error) {
+                console.error("Erreur de connexion:", error);
+                showMessage("Email ou mot de passe incorrect.", "error");
+            }
+        }
+
+        // Handler: Ajouter un magasin
+        async function handleAddStore(e) {
+            e.preventDefault();
+            if (!isAuthReady) return;
+
+            const name = getEl('store-name').value;
+            const code = getEl('store-code').value;
+            
+            try {
+                await addDoc(storesCollection, { name, code });
+                showMessage(`Magasin "${name}" ajouté !`, 'success');
+                e.target.reset();
+            } catch (error) {
+                console.error("Erreur ajout magasin:", error);
+                showMessage("Erreur lors de l'ajout du magasin.", "error");
+            }
+        }
+        
+        // Handler: Ajouter un appareil
+        async function handleAddEquipment(e) {
+            e.preventDefault();
+            if (!isAuthReady) return;
+
+            const storeId = getEl('equip-store-select').value;
+            const name = getEl('equip-name').value;
+            const type = getEl('equip-type').value;
+            const formId = getEl('equip-form-select').value;
+            
+            if (!storeId || !formId || !type || !name) {
+                showMessage("Veuillez remplir tous les champs.", "error");
+                return;
+            }
+
+            try {
+                await addDoc(equipmentCollection, {
+                    storeId,
+                    name,
+                    type,
+                    formId
+                });
+                
+                showMessage(`Appareil "${name}" ajouté !`, 'success');
+                e.target.reset();
+            } catch (error) {
+                console.error("Erreur ajout appareil:", error);
+                showMessage("Erreur lors de l'ajout de l'appareil.", "error");
+            }
+        }
+        
+        // Handler: Clics sur la liste des magasins (délégation)
+        async function handleStoresListClick(e) {
+            const target = e.target;
+            if (!isAuthReady) return;
+
+            // --- Modifier Magasin ---
+            if (target.classList.contains('edit-store-btn')) {
+                const storeId = target.dataset.storeId;
+                const store = allStores.find(s => s.id === storeId);
+                if (store) {
+                    getEl('edit-store-id').value = store.id;
+                    getEl('edit-store-name').value = store.name;
+                    getEl('edit-store-code').value = store.code;
+                    getEl('edit-store-modal').classList.remove('hidden');
+                }
+            }
+            
+            // --- Supprimer Magasin ---
+            if (target.classList.contains('delete-store-btn')) {
+                const storeId = target.dataset.storeId;
+                const store = allStores.find(s => s.id === storeId);
+                if (store) {
+                    showConfirmationModal(
+                        `Supprimer ${store.name} ?`,
+                        "Cela supprimera le magasin ET tous les appareils associés.",
+                        async () => {
+                            try {
+                                const q = query(equipmentCollection, where("storeId", "==", storeId));
+                                const querySnapshot = await getDocs(q);
+                                
+                                const batch = writeBatch(db);
+                                querySnapshot.forEach((doc) => batch.delete(doc.ref));
+                                batch.delete(doc(storesCollection, storeId));
+                                await batch.commit();
+                                
+                                showMessage("Magasin et appareils supprimés.", "success");
+                            } catch (error) {
+                                console.error("Erreur suppression magasin:", error);
+                                showMessage("Erreur lors de la suppression.", "error");
+                            }
+                        }
+                    );
+                }
+            }
+
+            // --- Modifier Appareil ---
+            if (target.classList.contains('edit-equip-btn')) {
+                const equipId = target.dataset.equipId;
+                const equip = allEquipment.find(e => e.id === equipId);
+                if (equip) {
+                    getEl('edit-equip-id').value = equip.id;
+                    getEl('edit-equip-name').value = equip.name;
+                    getEl('edit-equip-form-select').value = equip.formId;
+                    getEl('edit-equip-modal').classList.remove('hidden');
+                }
+            }
+            
+            // --- Supprimer Appareil ---
+            if (target.classList.contains('delete-equip-btn')) {
+                const equipId = target.dataset.equipId;
+                const equip = allEquipment.find(e => e.id === equipId);
+                if (equip) {
+                     showConfirmationModal(
+                        `Supprimer ${equip.name} ?`,
+                        "L'appareil sera supprimé de ce magasin.",
+                        async () => {
+                            try {
+                                await deleteDoc(doc(equipmentCollection, equipId));
+                                showMessage("Appareil supprimé.", "success");
+                            } catch (error) {
+                                console.error("Erreur suppression appareil:", error);
+                                showMessage("Erreur lors de la suppression.", "error");
+                            }
+                        }
+                    );
+                }
+            }
+            
+            // --- Générer QR Code (Simple) ---
+            const qrBtn = e.target.closest('.generate-qr-btn');
+            if (qrBtn) {
+                const data = {
+                    equipmentId: qrBtn.dataset.equipId,
+                    storeId: qrBtn.dataset.storeId,
+                    formId: qrBtn.dataset.formId
+                };
+                
+                // NOUVEAU: Passer les noms
+                generateSingleQrCode(data, qrBtn.dataset.equipName, qrBtn.dataset.storeName);
+            }
+        }
+        
+        // Handler: Soumettre l'édition de magasin
+        async function handleEditStore(e) {
+            e.preventDefault();
+            if (!isAuthReady) return;
+            
+            const storeId = getEl('edit-store-id').value;
+            const newName = getEl('edit-store-name').value;
+            const newCode = getEl('edit-store-code').value;
+            
+            try {
+                const storeRef = doc(storesCollection, storeId);
+                await updateDoc(storeRef, { name: newName, code: newCode });
+                
+                getEl('edit-store-modal').classList.add('hidden');
+                showMessage("Magasin mis à jour.", "success");
+            } catch (error) {
+                console.error("Erreur MàJ magasin:", error);
+                showMessage("Erreur lors de la mise à jour.", "error");
+            }
+        }
+        
+        // Handler: Soumettre l'édition d'appareil
+        async function handleEditEquipment(e) {
+            e.preventDefault();
+            if (!isAuthReady) return;
+
+            const equipId = getEl('edit-equip-id').value;
+            const newName = getEl('edit-equip-name').value;
+            const newFormId = getEl('edit-equip-form-select').value;
+
+            try {
+                const equipRef = doc(equipmentCollection, equipId);
+                await updateDoc(equipRef, {
+                    name: newName,
+                    formId: newFormId
+                });
+                
+                getEl('edit-equip-modal').classList.add('hidden');
+                showMessage("Appareil mis à jour.", "success");
+            } catch (error) {
+                console.error("Erreur MàJ appareil:", error);
+                showMessage("Erreur lors de la mise à jour.", "error");
+            }
+        }
+        
+        // Handler: Clics sur la liste des formulaires (délégation)
+        function handleFormsListClick(e) {
+            const target = e.target;
+            if (!isAuthReady) return;
+            
+            const formId = target.dataset.formId;
+            const form = allForms.find(f => f.id === formId);
+            if (!form) return;
+
+            // --- Modifier Formulaire ---
+            if (target.classList.contains('edit-form-btn')) {
+                getEl('form-builder-id').value = form.id;
+                getEl('form-builder-title').value = form.title;
+                
+                const fieldsContainer = getEl('form-builder-fields');
+                fieldsContainer.innerHTML = ''; // Vider les anciens
+                
+                form.fields.forEach(field => {
+                    addFormFieldToBuilder(fieldsContainer, field);
+                });
+                
+                getEl('cancel-edit-form-btn').classList.remove('hidden');
+                window.scrollTo(0, 0); // Remonter en haut de page
+            }
+            
+            // --- Supprimer Formulaire ---
+            if (target.classList.contains('delete-form-btn')) {
+                showConfirmationModal(
+                    `Supprimer ${form.title} ?`,
+                    "Les appareils liés n'auront plus de formulaire (cela peut causer des erreurs).",
+                    async () => {
+                        try {
+                            await deleteDoc(doc(formsCollection, formId));
+                            showMessage("Formulaire supprimé.", "success");
+                        } catch (error) {
+                            console.error("Erreur suppression formulaire:", error);
+                            showMessage("Erreur lors de la suppression.", "error");
+                        }
+                    }
+                );
+            }
+        }
+        
+        // Handler: Sauvegarder un formulaire (créer ou modifier)
+        async function handleSaveForm(e) {
+            e.preventDefault();
+            if (!isAuthReady) return;
+
+            const formId = getEl('form-builder-id').value;
+            const title = getEl('form-builder-title').value;
+            const fields = [];
+            
+            document.querySelectorAll('#form-builder-fields .form-builder-field').forEach(fieldDiv => {
+                const label = fieldDiv.querySelector('[data-key="label"]').value;
+                const type = fieldDiv.querySelector('[data-key="type"]').value;
+                const required = fieldDiv.querySelector('[data-key="required"]').checked;
+                
+                const optionInputs = fieldDiv.querySelectorAll('.option-input');
+                const optionsArray = Array.from(optionInputs)
+                                          .map(input => input.value.trim())
+                                          .filter(opt => opt.length > 0);
+                const options = optionsArray.join(',');
+                
+                if (label) {
+                    fields.push({ label, type, required, options });
+                }
+            });
+
+            if (fields.length === 0) {
+                showMessage("Un formulaire doit avoir au moins un champ.", "error");
+                return;
+            }
+            
+            const formData = { title, fields };
+
+            try {
+                if (formId) {
+                    // Modification
+                    const docRef = doc(formsCollection, formId);
+                    await updateDoc(docRef, formData);
+                    showMessage(`Formulaire "${title}" mis à jour !`, 'success');
+                } else {
+                    // Création
+                    await addDoc(formsCollection, formData);
+                    showMessage(`Formulaire "${title}" créé !`, 'success');
+                }
+                
+                resetFormBuilder();
+            } catch (error) {
+                console.error("Erreur sauvegarde formulaire:", error);
+                showMessage("Erreur lors de la sauvegarde du formulaire.", "error");
+            }
+        }
+        
+        // Handler: Soumettre le formulaire d'intervention
+        async function handleSubmitIntervention(e) {
+            e.preventDefault();
+            if (!isAuthReady || !currentScannedData) return;
+            
+            const formData = {};
+            const form = allForms.find(f => f.id === currentScannedData.formId);
+            
+            if (!form) {
+                showMessage("Erreur: Formulaire de référence introuvable.", "error");
+                return;
+            }
+            
+            // Récupérer les données des champs dynamiques
+            for (const field of form.fields) {
+                const fieldName = field.label;
+                const fieldId = `form-field-${fieldName.replace(/\s+/g, '-')}`;
+                let value = null;
+                let isRequired = field.required;
+
+                switch (field.type) {
+                    case 'checkbox':
+                        const checkedBoxes = document.querySelectorAll(`input[name="${fieldName}"]:checked`);
+                        value = Array.from(checkedBoxes).map(cb => cb.value);
+                        if (isRequired && value.length === 0) {
+                            showMessage(`Le champ "${fieldName}" est obligatoire (au moins 1 choix).`, 'error');
+                            return;
+                        }
+                        break;
+                    case 'radio':
+                        const checkedRadio = document.querySelector(`input[name="${fieldName}"]:checked`);
+                        value = checkedRadio ? checkedRadio.value : null;
+                        break;
+                    default: // Text, Textarea, Number, Select
+                        const input = document.getElementById(fieldId);
+                        value = input ? input.value : null;
+                }
+                
+                if (field.type !== 'checkbox' && isRequired && !value) {
+                    showMessage(`Le champ "${fieldName}" est obligatoire.`, 'error');
+                    return; // Arrêter la soumission
+                }
+                
+                formData[fieldName] = value;
+            }
+            
+            try {
+                await addDoc(reportsCollection, {
+                    userId: currentUserId,
+                    userEmail: auth.currentUser.email,
+                    storeId: currentScannedData.storeId,
+                    equipmentId: currentScannedData.equipmentId,
+                    formId: currentScannedData.formId,
+                    timestamp: new Date(), 
+                    data: formData
+                });
+                
+                showMessage("Rapport soumis avec succès !", "success");
+                navigateTo('scanner'); // Retour à la page de scan
+                currentScannedData = null; // Réinitialiser
+                e.target.reset();
+            } catch (error) {
+                console.error("Erreur soumission rapport:", error);
+                showMessage("Erreur lors de la soumission du rapport.", "error");
+            }
+        }
+        
+        // Handler: Clics sur la liste des utilisateurs (délégation)
+        async function handleUsersListClick(e) {
+            // Sauvegarder
+            if (e.target.classList.contains('save-user-btn')) {
+                const userId = e.target.dataset.userId;
+                if (userId === currentUserId) return;
+                
+                const userRow = e.target.closest('.user-row');
+                const newRole = userRow.querySelector('[data-key="role"]').value;
+                const newFonction = userRow.querySelector('[data-key="fonction"]').value;
+                
+                try {
+                    const userDocRef = doc(usersCollection, userId);
+                    await updateDoc(userDocRef, { 
+                        role: newRole,
+                        fonction: newFonction
+                    });
+                    showMessage("Utilisateur mis à jour.", "success");
+                } catch (error) {
+                     console.error("Erreur MàJ utilisateur:", error);
+                     showMessage("Erreur lors de la mise à jour.", "error");
+                }
+            }
+            
+            // Supprimer
+            if (e.target.classList.contains('delete-user-btn')) {
+                const userId = e.target.dataset.userId;
+                if (userId === currentUserId) return;
+                
+                const userEmail = e.target.closest('.user-row').querySelector('.font-medium').textContent;
+                
+                showConfirmationModal(
+                    `Supprimer ${userEmail} ?`,
+                    "Cela supprime l'enregistrement de l'utilisateur. (Ne supprime pas l'authentification).",
+                    async () => {
+                        try {
+                            // TODO: La suppression de l'authentification (deleteUser) est une opération
+                            // sensible qui nécessite une re-connexion ou une fonction cloud.
+                            // Pour l'instant, on supprime seulement le document firestore.
+                            await deleteDoc(doc(usersCollection, userId));
+                            showMessage("Utilisateur supprimé de la base de données.", "success");
+                        } catch (error) {
+                            console.error("Erreur suppression utilisateur:", error);
+                            showMessage("Erreur lors de la suppression.", "error");
+                        }
+                    }
+                )
+            }
+        }
+        
+        // Handler: Afficher onglet admin 'Modèle'
+        function showAdminTabModel() {
+            getEl('tab-panel-model').classList.remove('hidden');
+            getEl('tab-panel-manual').classList.add('hidden');
+            getEl('tab-model-btn').classList.add('border-secondary', 'text-secondary');
+            getEl('tab-manual-btn').classList.remove('border-secondary', 'text-secondary');
+            getEl('tab-manual-btn').classList.add('border-transparent', 'text-gray-500');
+        }
+        
+        // Handler: Afficher onglet admin 'Manuel'
+        function showAdminTabManual() {
+            getEl('tab-panel-model').classList.add('hidden');
+            getEl('tab-panel-manual').classList.remove('hidden');
+            getEl('tab-manual-btn').classList.add('border-secondary', 'text-secondary');
+            getEl('tab-model-btn').classList.remove('border-secondary', 'text-secondary');
+            getEl('tab-model-btn').classList.add('border-transparent', 'text-gray-500');
+        }
+        
+        // Handler: Ajouter type d'appareil (Modèle)
+        async function handleAddEquipTypeModel(e) {
+            e.preventDefault();
+            const selected = getEl('equip-type-model-select').value;
+            if (!selected) return;
+            
+            const [label, emoji] = selected.split(',');
+            
+            try {
+                await addDoc(equipmentTypesCollection, { label, emoji });
+                showMessage("Type d'appareil (modèle) ajouté.", "success");
+            } catch (error) {
+                console.error("Erreur ajout type:", error);
+                showMessage("Erreur lors de l'ajout.", "error");
+            }
+        }
+        
+        // Handler: Ajouter type d'appareil (Manuel)
+        async function handleAddEquipTypeManual(e) {
+            e.preventDefault();
+            const label = getEl('equip-type-label').value;
+            const emoji = getEl('equip-type-emoji').value;
+            
+            try {
+                await addDoc(equipmentTypesCollection, { label, emoji });
+                showMessage("Type d'appareil ajouté.", "success");
+                e.target.reset();
+            } catch (error) {
+                console.error("Erreur ajout type:", error);
+                showMessage("Erreur lors de l'ajout.", "error");
+            }
+        }
+        
+        // Handler: Clics sur la liste des types (délégation)
+        function handleEquipTypesListClick(e) {
+            // Modifier
+            if(e.target.classList.contains('edit-equip-type-btn')) {
+                const typeId = e.target.dataset.typeId;
+                const type = allEquipmentTypes.find(t => t.id === typeId);
+                if (type) {
+                    getEl('edit-equip-type-id').value = type.id;
+                    getEl('edit-equip-type-label').value = type.label;
+                    getEl('edit-equip-type-emoji').value = type.emoji;
+                    getEl('edit-equip-type-modal').classList.remove('hidden');
+                }
+            }
+            
+            // Supprimer
+            if(e.target.classList.contains('delete-equip-type-btn')) {
+                const typeId = e.target.dataset.typeId;
+                showConfirmationModal(
+                    "Supprimer ce type ?",
+                    "Assurez-vous qu'aucun appareil n'utilise ce type avant de le supprimer.",
+                    async () => {
+                        try {
+                            await deleteDoc(doc(equipmentTypesCollection, typeId));
+                            showMessage("Type supprimé.", "success");
+                        } catch (error) {
+                            console.error("Erreur suppression type:", error);
+                            showMessage("Erreur lors de la suppression.", "error");
+                        }
+                    }
+                )
+            }
+        }
+        
+        // Handler: Soumettre l'édition du type d'appareil
+        async function handleEditEquipType(e) {
+            e.preventDefault();
+            const typeId = getEl('edit-equip-type-id').value;
+            const newLabel = getEl('edit-equip-type-label').value;
+            const newEmoji = getEl('edit-equip-type-emoji').value;
+            
+            try {
+                const typeRef = doc(equipmentTypesCollection, typeId);
+                await updateDoc(typeRef, { label: newLabel, emoji: newEmoji });
+                getEl('edit-equip-type-modal').classList.add('hidden');
+                showMessage("Type d'appareil mis à jour.", "success");
+            } catch (error) {
+                console.error("Erreur MàJ type:", error);
+                showMessage("Erreur lors de la mise à jour.", "error");
+            }
+        }
+
+        
+        // --- NOUVELLE SECTION: Actions de Masse (Bulk Actions) ---
+
+        // Gère le cochage/décochage d'un appareil
+        function handleEquipSelectChange(e) {
+            if (!e.target.classList.contains('equip-select-checkbox')) return;
+            
+            const equipId = e.target.dataset.equipId;
+            if (e.target.checked) {
+                selectedEquipmentIds.add(equipId);
+            } else {
+                selectedEquipmentIds.delete(equipId);
+            }
+            updateBulkActionBar();
+        }
+
+        // Met à jour la barre d'actions (visible/cachée, compteur)
+        function updateBulkActionBar() {
+            const bar = getEl('bulk-action-bar');
+            const count = selectedEquipmentIds.size;
+            
+            if (count > 0) {
+                getEl('bulk-action-count').textContent = count;
+                bar.classList.remove('hidden');
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
+        // Gère le clic sur "Annuler" la sélection
+        function handleDeselectAll() {
+            selectedEquipmentIds.clear();
+            document.querySelectorAll('.equip-select-checkbox:checked').forEach(cb => {
+                cb.checked = false;
+            });
+            updateBulkActionBar();
+        }
+
+        // Gère le clic sur "Imprimer QR" (Masse)
+        function handleBulkPrintClick() {
+            const modalContent = getEl('qr-modal-content');
+            modalContent.innerHTML = ''; // Vider
+            
+            // Cacher les contrôles du simple
+            getEl('qr-size-select-wrapper').classList.add('hidden');
+            getEl('qr-modal-subtitle').classList.add('hidden');
+            getEl('qr-modal-title').textContent = `Impression de ${selectedEquipmentIds.size} QR Code(s)`;
+
+            // Créer une grille
+            modalContent.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 p-2';
+
+            const qrCodeDivIds = [];
+            
+            selectedEquipmentIds.forEach(id => {
+                const equip = allEquipment.find(e => e.id === id);
+                if (!equip) return;
+                
+                const store = allStores.find(s => s.id === equip.storeId);
+                const storeName = store ? store.name : 'Magasin inconnu';
+                const equipName = equip.name;
+                const qrDivId = `qr-bulk-${id}`;
+                
+                // Stocker les données pour l'instanciation
+                const qrData = JSON.stringify({
+                    equipmentId: equip.id,
+                    storeId: equip.storeId,
+                    formId: equip.formId
+                });
+                qrCodeDivIds.push({ id: qrDivId, data: qrData });
+                
+                // Ajouter le HTML pour la carte
+                const itemHtml = `
+                    <div class="qr-grid-item text-center p-4 border rounded-lg break-inside-avoid">
+                        <h4 class="text-xl font-bold mb-2">${equipName}</h4>
+                        <p class="text-sm text-gray-600 mb-3">${storeName}</p>
+                        <div id="${qrDivId}" class="flex justify-center"></div>
+                    </div>
+                `;
+                modalContent.insertAdjacentHTML('beforeend', itemHtml);
+            });
+            
+            // Instancier les QR Codes *après* que le HTML soit dans le DOM
+            requestAnimationFrame(() => {
+                qrCodeDivIds.forEach(item => {
+                    new QRCode(document.getElementById(item.id), {
+                        text: item.data,
+                        width: 128, // Taille fixe pour l'impression en grille
+                        height: 128,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                });
+            });
+
+            getEl('qr-modal').classList.remove('hidden');
+        }
+        
+        // Gère le clic sur "Supprimer" (Masse)
+        function handleBulkDeleteClick() {
+            const count = selectedEquipmentIds.size;
+            showConfirmationModal(
+                `Supprimer ${count} appareil(s) ?`,
+                "Cette action est irréversible et supprimera tous les appareils sélectionnés.",
+                async () => {
+                    if (!isAuthReady) return;
+                    try {
+                        const batch = writeBatch(db);
+                        selectedEquipmentIds.forEach(id => {
+                            batch.delete(doc(equipmentCollection, id));
+                        });
+                        await batch.commit();
+                        
+                        showMessage(`${count} appareil(s) supprimé(s).`, "success");
+                        handleDeselectAll(); // Vider la sélection
+                    } catch (error) {
+                        console.error("Erreur suppression de masse:", error);
+                        showMessage("Erreur lors de la suppression.", "error");
+                    }
+                }
+            );
+        }
+
+        // Gère le clic sur "Dupliquer" (Masse)
+        function handleBulkDuplicateClick() {
+            const count = selectedEquipmentIds.size;
+            getEl('duplicate-count').textContent = count;
+            renderDuplicateModalStores();
+            getEl('duplicate-equip-modal').classList.remove('hidden');
+        }
+        
+        // Remplit la modale de duplication avec la liste des magasins
+        function renderDuplicateModalStores() {
+            const listContainer = getEl('duplicate-store-list');
+            listContainer.innerHTML = '';
+            
+            if (allStores.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500">Aucun magasin de destination disponible.</p>';
+                return;
+            }
+            
+            allStores.sort((a,b) => a.name.localeCompare(b.name)).forEach(store => {
+                const storeHtml = `
+                    <label class="flex items-center p-2 rounded-lg hover:bg-gray-100">
+                        <input type="checkbox" name="targetStore" value="${store.id}" class="h-4 w-4 rounded mr-2">
+                        <span>${store.name} (${store.code})</span>
+                    </label>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', storeHtml);
+            });
+        }
+        
+        // Gère la soumission du formulaire de duplication
+        async function handleSubmitDuplicate(e) {
+            e.preventDefault();
+            if (!isAuthReady) return;
+            
+            const targetStoreIds = Array.from(document.querySelectorAll('#duplicate-store-list input[name="targetStore"]:checked'))
+                                      .map(cb => cb.value);
+            
+            if (targetStoreIds.length === 0) {
+                showMessage("Veuillez sélectionner au moins un magasin de destination.", "error");
+                return;
+            }
+            
+            const itemsToDuplicate = Array.from(selectedEquipmentIds).map(id => {
+                return allEquipment.find(e => e.id === id);
+            }).filter(Boolean); // Filtrer les undefined
+            
+            if (itemsToDuplicate.length === 0) {
+                 showMessage("Aucun appareil valide à dupliquer.", "error");
+                 return;
+            }
+
+            try {
+                const batch = writeBatch(db);
+                
+                targetStoreIds.forEach(storeId => {
+                    itemsToDuplicate.forEach(item => {
+                        // Créer une copie de l'objet, changer le storeId, supprimer l'id
+                        const newEquip = { ...item };
+                        delete newEquip.id; // Laisser Firestore générer un nouvel ID
+                        newEquip.storeId = storeId;
+                        
+                        // Créer une nouvelle référence de document
+                        const newDocRef = doc(collection(db, equipmentCollection.path));
+                        batch.set(newDocRef, newEquip);
+                    });
+                });
+                
+                await batch.commit();
+                
+                showMessage(`Appareil(s) dupliqué(s) dans ${targetStoreIds.length} magasin(s).`, "success");
+                getEl('duplicate-equip-modal').classList.add('hidden');
+                handleDeselectAll();
+
+            } catch (error) {
+                console.error("Erreur duplication de masse:", error);
+                showMessage("Erreur lors de la duplication.", "error");
+            }
+        }
+        
+        // --- Fin de la section Actions de Masse ---
+        
+        // --- Fonctions pour le Form Builder ---
+        function resetFormBuilder() {
+            getEl('form-builder-id').value = '';
+            getEl('create-form-builder').reset();
+            getEl('form-builder-fields').innerHTML = '';
+            getEl('cancel-edit-form-btn').classList.add('hidden');
+        }
+        
+        function addFormFieldToBuilder(container, fieldData = {}) {
+            const fieldIndex = container.children.length + Math.random();
+            const label = fieldData.label || '';
+            const type = fieldData.type || 'text';
+            const required = fieldData.required || false;
+            
+            const optionsArray = (fieldData.options || "").split(',').filter(opt => opt.length > 0);
+            const showOptions = ['select', 'radio', 'checkbox'].includes(type);
+
+            const optionsHtml = optionsArray.map(opt => `
+                <div class="flex items-center space-x-2 option-item">
+                    <input type="text" class="form-field text-sm flex-1 option-input" value="${opt}">
+                    <button type="button" class="remove-option-btn text-danger text-lg font-bold" title="Supprimer">&times;</button>
+                </div>
+            `).join('');
+
+            const fieldHtml = `
+                <div class="form-builder-field border p-3 rounded-md bg-gray-50 space-y-2 relative">
+                    <button type="button" class="remove-field-btn absolute top-2 right-2 text-danger hover:text-red-700 font-bold text-lg" title="Supprimer ce champ">&times;</button>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600">Nom du champ</label>
+                            <input type="text" placeholder="ex: Problème constaté" class="form-field text-sm" data-key="label" value="${label}" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600">Type de champ</label>
+                            <select class="form-field custom-select text-sm" data-key="type">
+                                <option value="text" ${type === 'text' ? 'selected' : ''}>Texte (une ligne)</option>
+                                <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Texte (plusieurs lignes)</option>
+                                <option value="number" ${type === 'number' ? 'selected' : ''}>Nombre</option>
+                                <option value="select" ${type === 'select' ? 'selected' : ''}>Liste déroulante</option>
+                                <option value="radio" ${type === 'radio' ? 'selected' : ''}>Choix unique (radio)</option>
+                                <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Choix multiples (checkbox)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="options-container ${showOptions ? '' : 'hidden'} space-y-2">
+                        <label class="block text-sm font-medium text-gray-600">Options</label>
+                        <div class="options-list space-y-2">
+                            ${optionsHtml}
+                        </div>
+                        <button type="button" class="add-option-btn text-sm bg-gray-200 text-gray-700 py-1 px-3 rounded-lg hover:bg-gray-300">+ Ajouter une option</button>
+                    </div>
+                    
+                    <div class="flex items-center pt-1">
+                        <input type="checkbox" id="required-${fieldIndex}" class="h-4 w-4 rounded" data-key="required" ${required ? 'checked' : ''}>
+                        <label for="required-${fieldIndex}" class="ml-2 text-sm">Obligatoire ?</label>
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', fieldHtml);
+        }
+        
+        function handleRemoveField(e) {
+            e.target.closest('.form-builder-field').remove();
+        }
+        
+        function handleAddOption(e) {
+            const optionsList = e.target.previousElementSibling; // Le .options-list
+            if (optionsList) {
+                const optionHtml = `
+                <div class="flex items-center space-x-2 option-item">
+                    <input type="text" class="form-field text-sm flex-1 option-input" placeholder="Nouvelle option">
+                    <button type="button" class="remove-option-btn text-danger text-lg font-bold" title="Supprimer">&times;</button>
+                </div>`;
+                optionsList.insertAdjacentHTML('beforeend', optionHtml);
+            }
+        }
+
+        function handleRemoveOption(e) {
+            e.target.closest('.option-item').remove();
+        }
+        
+        function handleFieldTypeChange(e) {
+            if (e.target.dataset.key === 'type') {
+                const fieldDiv = e.target.closest('.form-builder-field');
+                const optionsContainer = fieldDiv.querySelector('.options-container');
+                const selectedType = e.target.value;
+                
+                if (['select', 'radio', 'checkbox'].includes(selectedType)) {
+                    optionsContainer.classList.remove('hidden');
+                } else {
+                    optionsContainer.classList.add('hidden');
+                }
+            }
+        }
+        
+        
+        // --- Scanner et QR Code ---
+
+        function startScan() {
+            try {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                
+                html5QrCode.start( { facingMode: "environment" }, config, onScanSuccess, onScanError)
+                .catch(err => {
+                    showMessage("Impossible de démarrer la caméra.", "error");
+                });
+                
+                getEl('start-scan-btn').classList.add('hidden');
+                getEl('stop-scan-btn').classList.remove('hidden');
+            } catch (e) {
+                 console.error("Erreur démarrage scanner:", e);
+                 showMessage("Erreur au démarrage du scanner.", "error");
+            }
+        }
+
+        function stopScan() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.warn("Erreur à l'arrêt du scan:", err));
+            }
+            getEl('start-scan-btn').classList.remove('hidden');
+            getEl('stop-scan-btn').classList.add('hidden');
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Code scanné: ${decodedText}`);
+            
+            try {
+                const data = JSON.parse(decodedText);
+                const store = allStores.find(s => s.id === data.storeId);
+                const equipment = allEquipment.find(eq => eq.id === data.equipmentId);
+                const form = allForms.find(f => f.id === data.formId);
+
+                if (store && equipment && form) {
+                    currentScannedData = data;
+                    
+                    stopScan(); 
+                    
+                    getEl('form-subtitle').textContent = `Magasin: ${store.name}`;
+                    getEl('form-datetime').value = new Date().toLocaleString('fr-FR');
+                    
+                    renderInterventionForm(data.formId);
+                    navigateTo('intervention-form');
+
+                } else {
+                    showMessage("QR code non valide ou données introuvables.", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showMessage("Erreur lors de la lecture du QR code.", "error");
+            }
+        }
+
+        function onScanError(errorMessage) {
+            // Ignorer (trop verbeux)
+        }
+
+        // Modifié pour gérer la génération d'un *seul* QR Code
+        function generateSingleQrCode(data, equipName, storeName) {
+            const qrDataString = JSON.stringify(data);
+            const qrContainer = getEl('qr-modal-content');
+            const size = parseInt(getEl('qr-size-select').value) || 256;
+
+            qrContainer.innerHTML = ''; // Nettoyer l'ancien
+            qrContainer.className = 'flex justify-center flex-col items-center'; // Classe par défaut
+            
+            // Stocker les données pour le redimensionnement
+            qrContainer.dataset.simpleData = JSON.stringify({ data, equipName, storeName });
+            
+            // Afficher les contrôles du simple
+            getEl('qr-size-select-wrapper').classList.remove('hidden');
+            getEl('qr-modal-subtitle').classList.remove('hidden');
+            getEl('qr-modal-title').textContent = "QR Code de l'Appareil"; // Titre par défaut
+            
+            // Mettre à jour le sous-titre
+            getEl('qr-modal-subtitle').textContent = `Appareil: ${equipName} | Magasin: ${storeName}`;
+
+            // Créer le div pour le QR code
+            const qrDiv = document.createElement('div');
+            
+            new QRCode(qrDiv, {
+                text: qrDataString,
+                width: size,
+                height: size,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            
+            qrContainer.appendChild(qrDiv);
+            getEl('qr-modal').classList.remove('hidden');
+        }
+        
+        // --- Modals Utilitaires ---
+
+        function showConfirmationModal(title, text, callback) {
+            getEl('confirm-title').textContent = title;
+            getEl('confirm-text').textContent = text;
+            _confirmCallback = callback; // Stocker le callback
+            getEl('confirm-modal').classList.remove('hidden');
+        }
+
+        function showMessage(message, type = 'error') {
+            const modal = getEl('message-modal');
+            const text = getEl('message-text');
+            if (!modal || !text) return;
+            
+            text.textContent = message;
+            
+            if (type === 'success') {
+                modal.classList.remove('bg-red-600');
+                modal.classList.add('bg-green-600');
+            } else { // 'error' ou 'danger'
+                modal.classList.add('bg-red-600');
+                modal.classList.remove('bg-green-600');
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('opacity-100');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('opacity-100');
+            }, 3000);
+        }
+        
+        // --- Navigation et Utilitaires ---
+        
+        function hideAllPages() {
+            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+        }
+
+        function navigateTo(pageId) {
+            hideAllPages();
+            
+            const targetPage = getEl(`page-${pageId}`);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+            } else {
+                getEl('page-scanner').classList.remove('hidden');
+                pageId = 'scanner';
+            }
+
+            // Mettre à jour l'état des onglets de navigation
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                if (tab.dataset.page === pageId) {
+                    tab.classList.add('nav-tab-active');
+                    tab.classList.remove('nav-tab-inactive');
+                } else {
+                    tab.classList.remove('nav-tab-active');
+                    tab.classList.add('nav-tab-inactive');
+                }
+            });
+            
+            if (pageId !== 'scanner' && html5QrCode && html5QrCode.isScanning) {
+                 stopScan();
+            }
+        }
+        
+        // Démarrage de l'application
+        document.addEventListener('DOMContentLoaded', initializeFirebase);
+    </script>
+
+</body>
+</html>
