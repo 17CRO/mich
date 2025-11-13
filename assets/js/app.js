@@ -3039,4 +3039,8 @@ function navigateTo(pageId) {
 }
 
 // Démarrage de l'application
-document.addEventListener('DOMContentLoaded', initializeFirebase);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeFirebase);
+} else {
+    initializeFirebase();
+}
