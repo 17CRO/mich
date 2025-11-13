@@ -10,8 +10,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Bibliothèque pour scanner les QR Codes -->
     <script src="https://unpkg.com/html5-qrcode@2.0.9/dist/html5-qrcode.min.js"></script>
-    <!-- Génération d'Excel -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <!-- Police Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,78 +54,24 @@
     <!-- Navigation principale (Onglets) -->
     <div id="main-nav" class="sticky top-0 z-30 hidden px-4 sm:px-6 lg:px-8 py-4"> <!-- Ajout de padding vertical -->
         <div class="nav-shell max-w-6xl mx-auto">
-            <div id="main-nav-container" class="px-3 sm:px-6 lg:px-8 flex items-center gap-3 justify-between">
-                <div class="flex items-center gap-3 flex-1">
-                    <button id="mobile-menu-button" type="button" aria-label="Ouvrir le menu" class="hamburger-button lg:hidden">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
-                    <div class="flex items-center gap-3 overflow-x-auto w-full">
-                        <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
-                        <!-- Onglets Admin seulement -->
-                        <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
-                        <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
-                        <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
-                        <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
-                    </div>
+            <div id="main-nav-container" class="px-3 sm:px-6 lg:px-8 flex items-center gap-3 overflow-x-auto justify-between">
+                <!-- Onglets pour tous -->
+                <div class="flex items-center gap-3">
+                    <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
+                    <!-- Onglets Admin seulement -->
+                    <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
+                    <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
+                    <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
+                    <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
                 </div>
 
                 <!-- Panneau utilisateur déplacé ici -->
-                <div id="nav-user-info" class="hidden md:flex items-center gap-3 text-sm">
+                <div id="nav-user-info" class="flex items-center gap-3 text-sm">
                     <span id="user-welcome-display-nav" class="text-base font-semibold hidden text-primary-dark"></span>
                     <span id="user-role-display-nav" class="badge bg-primary/20 text-primary hidden"></span>
                     <button id="auth-button-nav" class="btn btn-secondary text-sm px-4 py-1.5">Déconnexion</button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Menu mobile -->
-    <div id="mobile-menu-panel" class="mobile-menu-panel hidden">
-        <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
-        <div class="mobile-menu-content">
-            <div class="mobile-menu-header">
-                <div>
-                    <p id="mobile-user-name" class="mobile-menu-name"></p>
-                    <p id="mobile-user-email" class="mobile-menu-email"></p>
-                    <span id="mobile-role-display" class="badge hidden"></span>
-                </div>
-                <button id="mobile-menu-close" type="button" aria-label="Fermer le menu" class="mobile-menu-close">&times;</button>
-            </div>
-
-            <form id="mobile-account-form" class="space-y-3">
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label for="mobile-account-first-name" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Prénom</label>
-                        <input type="text" id="mobile-account-first-name" class="form-field" placeholder="ex: Léa">
-                    </div>
-                    <div>
-                        <label for="mobile-account-last-name" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Nom</label>
-                        <input type="text" id="mobile-account-last-name" class="form-field" placeholder="ex: Martin">
-                    </div>
-                </div>
-                <div>
-                    <label for="mobile-account-fonction" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Fonction</label>
-                    <input type="text" id="mobile-account-fonction" class="form-field" placeholder="Technicien, Manager, ...">
-                </div>
-                <div>
-                    <label for="mobile-account-email" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</label>
-                    <input type="email" id="mobile-account-email" class="form-field bg-gray-100" disabled>
-                </div>
-                <button type="submit" class="w-full btn btn-primary">Mettre à jour mes informations</button>
-            </form>
-
-            <div class="mobile-nav-links" id="mobile-nav-links">
-                <p class="mobile-nav-section-title">Navigation</p>
-                <button type="button" class="mobile-nav-link" data-page="scanner">Scanner</button>
-                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="reports">Rapports</button>
-                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="stores">Magasins</button>
-                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="forms">Formulaires</button>
-                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="admin">Gestion Admin</button>
-            </div>
-
-            <button id="mobile-logout-btn" type="button" class="w-full btn btn-danger">Déconnexion</button>
         </div>
     </div>
 
@@ -386,14 +330,9 @@
         <!-- ================= PAGE 5: RAPPORTS (Stats) ================= -->
         <div id="page-reports" class="page hidden">
             <div class="card p-6 space-y-6">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <h2 class="text-2xl font-bold text-primary-dark">Rapports d'Intervention</h2>
-                        <p id="reports-count" class="text-sm text-gray-500">0 rapport</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="open-excel-modal" type="button" class="btn btn-secondary whitespace-nowrap">Extraction Excel</button>
-                    </div>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <h2 class="text-2xl font-bold text-primary-dark">Rapports d'Intervention</h2>
+                    <p id="reports-count" class="text-sm text-gray-500">0 rapport</p>
                 </div>
 
                 <!-- Filtres -->
@@ -558,51 +497,6 @@
     </main>
 
     <!-- ================= MODALS ================= -->
-
-    <!-- Modal Extraction Excel -->
-    <div id="excel-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-primary-dark">Exporter les rapports</h2>
-                <button type="button" class="modal-close-btn text-2xl leading-none text-gray-500 hover:text-primary">&times;</button>
-            </div>
-            <p class="text-sm text-gray-600 mb-4">Affinez votre extraction Excel en sélectionnant des filtres optionnels.</p>
-            <form id="excel-export-form" class="space-y-4">
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label for="excel-filter-store" class="block text-gray-700 font-medium mb-1">Magasin</label>
-                        <select id="excel-filter-store" class="form-field custom-select">
-                            <option value="all">Tous les magasins</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="excel-filter-user" class="block text-gray-700 font-medium mb-1">Intervenant</label>
-                        <select id="excel-filter-user" class="form-field custom-select">
-                            <option value="all">Tous les intervenants</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="excel-filter-form" class="block text-gray-700 font-medium mb-1">Formulaire</label>
-                        <select id="excel-filter-form" class="form-field custom-select">
-                            <option value="all">Tous les formulaires</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="excel-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
-                        <input type="date" id="excel-filter-from" class="form-field">
-                    </div>
-                    <div>
-                        <label for="excel-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
-                        <input type="date" id="excel-filter-to" class="form-field">
-                    </div>
-                </div>
-                <div class="flex flex-wrap justify-end gap-2">
-                    <button type="button" class="modal-close-btn btn btn-gray">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Générer l'Excel</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- Modal pour afficher le QR Code -->
     <div id="qr-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">

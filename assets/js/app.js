@@ -50,7 +50,6 @@ const firebaseConfig = {
 // --- FIN DE LA CONFIGURATION ---
 
 const appId = 'gest-appareils-public'; // Nom de la collection principale
-const DEEP_LINK_STORAGE_KEY = 'gestapp:pendingDeepLink';
 
 // --- Variables Globales ---
 let app, auth, db, storage;
@@ -67,15 +66,12 @@ let usersCollection, storesCollection, equipmentCollection, formsCollection, rep
 // Etat de l'application (Cache local)
 let html5QrCode;
 let currentScannedData = null;
-let pendingDeepLink = null;
 let allStores = [];
 let allEquipment = [];
 let allForms = [];
 let allReports = [];
 let allEquipmentTypes = [];
 let equipmentListenerReady = false; // Flag pour gérer le chargement
-let storesLoaded = false;
-let formsLoaded = false;
 let selectedEquipmentIds = new Set(); // NOUVEAU: Pour la sélection multiple
 let storeSearchTerm = '';
 let openStoreIds = new Set();
@@ -83,7 +79,6 @@ let reportSearchTerm = '';
 let openReportStoreIds = new Set();
 let allUsers = [];
 let userSearchTerm = '';
-let reportFilterStoreId = 'all';
 let reportFilterUserId = 'all';
 let reportFilterFormId = 'all';
 let reportFilterFrom = '';
@@ -92,8 +87,6 @@ let isCreateUserFormOpen = false;
 let currentBulkQrData = [];
 let messageTimeoutId = null;
 let messageActionHandler = null;
-
-captureDeepLinkFromUrl();
 
 // Listeners (pour les arrêter)
 let unsubForms = () => {}, unsubStores = () => {}, unsubEquipment = () => {}, unsubReports = () => {}, unsubUsers = () => {}, unsubEquipmentTypes = () => {};
@@ -147,209 +140,25 @@ function getFirstName(profile) {
 }
 
 function updateWelcomeMessage() {
-    // MODIFIÉ: Mettre à jour les panneaux utilisateur
+    // MODIFIÉ: Mettre à jour les DEUX panneaux (l'ancien caché et le nouveau)
     const welcomeDisplay = getEl('user-welcome-display'); // Ancien (caché)
     const welcomeDisplayNav = getEl('user-welcome-display-nav'); // Nouveau (dans la nav)
-    const mobileWelcome = getEl('mobile-user-name');
-    const mobileEmail = getEl('mobile-user-email');
+
+    if (!welcomeDisplay || !welcomeDisplayNav) return;
 
     const firstName = getFirstName(currentUserProfile);
-    const fullName = getDisplayName(currentUserProfile);
-    const baseEmail = currentUserProfile?.email || auth?.currentUser?.email || '';
-
-    const message = firstName
-        ? `Bienvenue ${firstName}`
-        : (fullName ? `Bienvenue ${fullName}` : (baseEmail ? `Bienvenue ${baseEmail}` : ''));
-
-    if (welcomeDisplay && welcomeDisplayNav) {
-        if (message) {
-            welcomeDisplay.textContent = message;
-            welcomeDisplayNav.textContent = message;
-            welcomeDisplay.classList.remove('hidden');
-            welcomeDisplayNav.classList.remove('hidden');
-        } else {
-            welcomeDisplay.textContent = '';
-            welcomeDisplayNav.textContent = '';
-            welcomeDisplay.classList.add('hidden');
-            welcomeDisplayNav.classList.add('hidden');
-        }
+    if (firstName) {
+        const message = `Bienvenue ${firstName}`;
+        welcomeDisplay.textContent = message;
+        welcomeDisplayNav.textContent = message;
+        welcomeDisplay.classList.remove('hidden');
+        welcomeDisplayNav.classList.remove('hidden');
+    } else {
+        welcomeDisplay.textContent = '';
+        welcomeDisplayNav.textContent = '';
+        welcomeDisplay.classList.add('hidden');
+        welcomeDisplayNav.classList.add('hidden');
     }
-
-    if (mobileWelcome) {
-        mobileWelcome.textContent = message;
-    }
-    if (mobileEmail) {
-        mobileEmail.textContent = baseEmail;
-    }
-
-    const mobileRoleDisplay = getEl('mobile-role-display');
-    if (mobileRoleDisplay) {
-        if (currentUserRole) {
-            const roleLabel = currentUserRole === 'admin' ? 'ADMINISTRATEUR' : (currentUserRole === 'user' ? 'UTILISATEUR' : 'EN ATTENTE');
-            mobileRoleDisplay.textContent = roleLabel;
-            mobileRoleDisplay.classList.remove('hidden');
-        } else {
-            mobileRoleDisplay.textContent = '';
-            mobileRoleDisplay.classList.add('hidden');
-        }
-    }
-
-    syncMobileAccountForm();
-}
-
-function syncMobileAccountForm() {
-    const firstNameInput = getEl('mobile-account-first-name');
-    const lastNameInput = getEl('mobile-account-last-name');
-    const fonctionInput = getEl('mobile-account-fonction');
-    const emailInput = getEl('mobile-account-email');
-
-    if (!firstNameInput || !lastNameInput || !fonctionInput || !emailInput) return;
-
-    firstNameInput.value = currentUserProfile?.firstName || '';
-    lastNameInput.value = currentUserProfile?.lastName || '';
-    fonctionInput.value = currentUserProfile?.fonction || '';
-    emailInput.value = currentUserProfile?.email || auth?.currentUser?.email || '';
-}
-
-function captureDeepLinkFromUrl() {
-    if (typeof window === 'undefined') return;
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const dataFromUrl = extractDataFromSearchParams(params);
-
-        if (dataFromUrl) {
-            pendingDeepLink = dataFromUrl;
-            sessionStorage.setItem(DEEP_LINK_STORAGE_KEY, JSON.stringify(dataFromUrl));
-            const cleanUrl = `${window.location.origin}${window.location.pathname}${window.location.hash}`;
-            window.history.replaceState({}, document.title, cleanUrl);
-            return;
-        }
-
-        const stored = sessionStorage.getItem(DEEP_LINK_STORAGE_KEY);
-        if (stored) {
-            pendingDeepLink = JSON.parse(stored);
-        }
-    } catch (error) {
-        console.warn('Impossible de lire le lien profond:', error);
-    }
-}
-
-function extractDataFromSearchParams(params) {
-    if (!params) return null;
-    const storeId = params.get('store') || params.get('storeId');
-    const equipmentId = params.get('equip') || params.get('equipment') || params.get('equipmentId');
-    const formId = params.get('form') || params.get('formId');
-
-    if (storeId && equipmentId && formId) {
-        return { storeId, equipmentId, formId };
-    }
-    return null;
-}
-
-function clearPendingDeepLink() {
-    pendingDeepLink = null;
-    if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.removeItem(DEEP_LINK_STORAGE_KEY);
-    }
-}
-
-function processPendingDeepLink({ forceMessage = false } = {}) {
-    if (!pendingDeepLink || !isAuthReady || !currentUserId) return;
-    const opened = openInterventionFormFor(pendingDeepLink, { silent: !forceMessage });
-    if (opened) {
-        clearPendingDeepLink();
-    } else if (forceMessage) {
-        clearPendingDeepLink();
-    }
-}
-
-function parseQrPayload(rawText) {
-    if (!rawText) return null;
-    const trimmed = rawText.trim();
-    if (!trimmed) return null;
-
-    try {
-        const data = JSON.parse(trimmed);
-        if (data.storeId && data.equipmentId && data.formId) {
-            return data;
-        }
-    } catch (error) {
-        // Ignorer, ce n'est simplement pas du JSON
-    }
-
-    return extractDataFromUrlText(trimmed);
-}
-
-function extractDataFromUrlText(text) {
-    try {
-        const url = new URL(text);
-        const data = extractDataFromSearchParams(url.searchParams);
-        if (data) return data;
-    } catch (error) {
-        // Ignorer
-    }
-
-    if (text.includes('=') || text.includes('&')) {
-        try {
-            const normalized = text.startsWith('?') ? text : `?${text}`;
-            const params = new URLSearchParams(normalized);
-            return extractDataFromSearchParams(params);
-        } catch (error) {
-            return null;
-        }
-    }
-
-    return null;
-}
-
-function buildDeepLinkUrl(data) {
-    if (typeof window === 'undefined') return '';
-    const baseUrl = `${window.location.origin}${window.location.pathname}`;
-    const url = new URL(baseUrl);
-    url.searchParams.set('store', data.storeId);
-    url.searchParams.set('equip', data.equipmentId);
-    url.searchParams.set('form', data.formId);
-    return url.toString();
-}
-
-function openInterventionFormFor(data, { silent = false } = {}) {
-    if (!data || !data.storeId || !data.equipmentId || !data.formId) {
-        if (!silent) {
-            showMessage('QR code non valide ou incomplet.', 'error');
-        }
-        return false;
-    }
-
-    const store = allStores.find(s => s.id === data.storeId);
-    const equipment = allEquipment.find(eq => eq.id === data.equipmentId);
-    const form = allForms.find(f => f.id === data.formId);
-
-    if (!store || !equipment || !form) {
-        if (!silent && isAuthReady) {
-            showMessage('QR code non valide ou données introuvables.', 'error');
-        }
-        return false;
-    }
-
-    currentScannedData = {
-        storeId: data.storeId,
-        equipmentId: data.equipmentId,
-        formId: data.formId
-    };
-
-    const storeLabel = store.name || 'Magasin';
-    const equipmentLabel = equipment.name || 'Appareil';
-    getEl('form-subtitle').textContent = `Magasin: ${storeLabel} • Appareil: ${equipmentLabel}`;
-    getEl('form-datetime').value = new Date().toLocaleString('fr-FR');
-
-    renderInterventionForm(data.formId);
-    navigateTo('intervention-form');
-    return true;
-}
-
-function triggerDeepLinkCheck() {
-    const readyForError = formsLoaded && storesLoaded && equipmentListenerReady;
-    processPendingDeepLink({ forceMessage: readyForError });
 }
 
 function setCreateUserFormVisibility(shouldShow) {
@@ -464,7 +273,6 @@ async function setupAuthListener() {
     // MODIFIÉ: Gérer les deux boutons de déconnexion
     const authButton = getEl('auth-button'); // Ancien
     const authButtonNav = getEl('auth-button-nav'); // Nouveau
-    const authButtonMobile = getEl('mobile-logout-btn');
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -527,19 +335,9 @@ async function setupAuthListener() {
             const roleDisplayNav = getEl('user-role-display-nav');
             if (roleDisplayNav) roleDisplayNav.classList.add('hidden');
 
-            const mobileWelcome = getEl('mobile-user-name');
-            if (mobileWelcome) mobileWelcome.textContent = '';
-            const mobileEmail = getEl('mobile-user-email');
-            if (mobileEmail) mobileEmail.textContent = '';
-            const mobileRoleDisplay = getEl('mobile-role-display');
-            if (mobileRoleDisplay) mobileRoleDisplay.classList.add('hidden');
-            syncMobileAccountForm();
-            closeMobileMenu();
-
             delete document.body.dataset.role;
             allUsers = [];
             userSearchTerm = '';
-            reportFilterStoreId = 'all';
             reportFilterUserId = 'all';
             reportFilterFormId = 'all';
             reportFilterFrom = '';
@@ -561,10 +359,6 @@ async function setupAuthListener() {
     };
     if (authButton) authButton.addEventListener('click', logoutHandler);
     if (authButtonNav) authButtonNav.addEventListener('click', logoutHandler);
-    if (authButtonMobile) authButtonMobile.addEventListener('click', () => {
-        closeMobileMenu();
-        logoutHandler();
-    });
 }
 
 // Affiche l'UI en fonction du rôle
@@ -639,8 +433,7 @@ function initializeAppUI(role, email) {
     loadAllData(role);
 
     // Naviguer vers la page par défaut
-    navigateTo('scanner');
-    processPendingDeepLink();
+    navigateTo('scanner'); 
 }
 
 // --- Chargement des données (Real-time) ---
@@ -663,18 +456,13 @@ function loadAllData(role) {
 
     console.log("Démarrage des listeners de données...");
     stopDataListeners(); // S'assurer que les anciens sont arrêtés
-    formsLoaded = false;
-    storesLoaded = false;
-    equipmentListenerReady = false;
 
     // 1. Charger les formulaires
     unsubForms = onSnapshot(formsCollection, (snapshot) => {
         allForms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        formsLoaded = true;
         if (role === 'admin') renderFormsList();
         updateAllSelects();
         console.log("Formulaires chargés:", allForms.length);
-        triggerDeepLinkCheck();
     }, (error) => console.error("Erreur chargement formulaires:", error));
 
     // 2. Charger les types d'appareils
@@ -688,12 +476,10 @@ function loadAllData(role) {
     // 3. Charger les magasins
     unsubStores = onSnapshot(storesCollection, (snapshot) => {
         allStores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        storesLoaded = true;
         updateAllSelects();
         renderReportsList(); // Mettre à jour les noms de magasins dans les rapports
         console.log("Magasins chargés:", allStores.length);
         if (equipmentListenerReady && role === 'admin') renderStoresList();
-        triggerDeepLinkCheck();
     }, (error) => console.error("Erreur chargement magasins:", error));
 
     // 4. Charger les équipements
@@ -701,8 +487,7 @@ function loadAllData(role) {
         allEquipment = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         equipmentListenerReady = true;
         console.log("Équipements chargés:", allEquipment.length);
-        if (role === 'admin') renderStoresList();
-        triggerDeepLinkCheck();
+        if (role === 'admin') renderStoresList(); 
     }, (error) => console.error("Erreur chargement équipements:", error));
 
     // 5. Charger les rapports (Stats)
@@ -743,23 +528,18 @@ function updateAllSelects() {
 
     storeSelects.forEach(sel => {
         if(sel) {
-            const previousValue = sel.id === 'report-filter-store' ? reportFilterStoreId : sel.value;
+            const previousValue = sel.value;
             const firstOptionValue = sel.options[0] ? sel.options[0].value : "all";
             const firstOptionText = sel.options[0] ? sel.options[0].text : "Tous les magasins";
 
             sel.innerHTML = `<option value="${firstOptionValue}">${firstOptionText}</option>`; // Garder la première option
 
-            allStores.sort((a,b) => (a.name || '').localeCompare(b.name || '')).forEach(store => {
-                const storeNameLabel = escapeHtml(store.name || 'Magasin');
-                const storeCodeLabel = store.code ? ` (${escapeHtml(store.code)})` : '';
-                sel.innerHTML += `<option value="${store.id}">${storeNameLabel}${storeCodeLabel}</option>`;
+            allStores.sort((a,b) => a.name.localeCompare(b.name)).forEach(store => {
+                sel.innerHTML += `<option value="${store.id}">${store.name} (${store.code})</option>`;
             });
 
             if (Array.from(sel.options).some(option => option.value === previousValue)) {
                 sel.value = previousValue;
-            } else if (sel.id === 'report-filter-store') {
-                reportFilterStoreId = 'all';
-                sel.value = 'all';
             }
         }
     });
@@ -977,10 +757,6 @@ function renderReportsList() {
         searchInput.value = reportSearchTerm;
     }
 
-    if (filterSelect && filterSelect.value !== reportFilterStoreId) {
-        filterSelect.value = reportFilterStoreId;
-    }
-
     const userSelect = getEl('report-filter-user');
     if (userSelect && userSelect.value !== reportFilterUserId) {
         userSelect.value = reportFilterUserId;
@@ -1007,7 +783,7 @@ function renderReportsList() {
         return;
     }
 
-    const filterStoreId = reportFilterStoreId;
+    const filterStoreId = filterSelect.value;
     const normalizedSearch = reportSearchTerm.trim().toLowerCase();
     const fromDate = reportFilterFrom ? new Date(reportFilterFrom) : null;
     if (fromDate) fromDate.setHours(0, 0, 0, 0);
@@ -1240,187 +1016,6 @@ async function handleReportsListClick(e) {
             }
         );
     }
-}
-
-function openExcelModal() {
-    if (!isAuthReady) {
-        showMessage('Connectez-vous pour exporter les rapports.', 'error');
-        return;
-    }
-    populateExcelModalFilters();
-    const modal = getEl('excel-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
-}
-
-function populateExcelModalFilters() {
-    const storeSelect = getEl('excel-filter-store');
-    const userSelect = getEl('excel-filter-user');
-    const formSelect = getEl('excel-filter-form');
-    const fromInput = getEl('excel-filter-from');
-    const toInput = getEl('excel-filter-to');
-
-    if (storeSelect) {
-        storeSelect.innerHTML = '<option value="all">Tous les magasins</option>';
-        allStores.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).forEach(store => {
-            const nameLabel = escapeHtml(store.name || 'Magasin');
-            const codeLabel = store.code ? ` (${escapeHtml(store.code)})` : '';
-            storeSelect.innerHTML += `<option value="${store.id}">${nameLabel}${codeLabel}</option>`;
-        });
-        if (Array.from(storeSelect.options).some(opt => opt.value === reportFilterStoreId)) {
-            storeSelect.value = reportFilterStoreId;
-        } else {
-            storeSelect.value = 'all';
-        }
-    }
-
-    if (userSelect) {
-        userSelect.innerHTML = '<option value="all">Tous les intervenants</option>';
-        allUsers.slice().sort((a, b) => (getDisplayName(a) || a.email || '').localeCompare(getDisplayName(b) || b.email || '')).forEach(user => {
-            const label = escapeHtml(getDisplayName(user) || user.email || 'Utilisateur');
-            userSelect.innerHTML += `<option value="${user.id}">${label}</option>`;
-        });
-        if (Array.from(userSelect.options).some(opt => opt.value === reportFilterUserId)) {
-            userSelect.value = reportFilterUserId;
-        } else {
-            userSelect.value = 'all';
-        }
-    }
-
-    if (formSelect) {
-        formSelect.innerHTML = '<option value="all">Tous les formulaires</option>';
-        allForms.slice().sort((a, b) => a.title.localeCompare(b.title)).forEach(form => {
-            formSelect.innerHTML += `<option value="${form.id}">${escapeHtml(form.title)}</option>`;
-        });
-        if (Array.from(formSelect.options).some(opt => opt.value === reportFilterFormId)) {
-            formSelect.value = reportFilterFormId;
-        } else {
-            formSelect.value = 'all';
-        }
-    }
-
-    if (fromInput) fromInput.value = reportFilterFrom || '';
-    if (toInput) toInput.value = reportFilterTo || '';
-}
-
-function filterReportsForExport(filters) {
-    const fromDate = filters.from ? new Date(filters.from) : null;
-    if (fromDate) fromDate.setHours(0, 0, 0, 0);
-    const toDate = filters.to ? new Date(filters.to) : null;
-    if (toDate) toDate.setHours(23, 59, 59, 999);
-
-    return allReports.filter(report => {
-        if (filters.storeId !== 'all' && report.storeId !== filters.storeId) return false;
-        if (filters.userId !== 'all' && report.userId !== filters.userId) return false;
-        if (filters.formId !== 'all' && report.formId !== filters.formId) return false;
-
-        const reportDateObj = report.timestamp?.toDate ? report.timestamp.toDate() : null;
-        if (fromDate && (!reportDateObj || reportDateObj < fromDate)) return false;
-        if (toDate && (!reportDateObj || reportDateObj > toDate)) return false;
-
-        return true;
-    });
-}
-
-function flattenReportData(data = {}) {
-    const entries = Object.entries(data);
-    if (entries.length === 0) return '';
-    return entries.map(([key, value]) => {
-        if (Array.isArray(value)) {
-            return `${key}: ${value.join(', ')}`;
-        }
-        return `${key}: ${value ?? ''}`;
-    }).join('\n');
-}
-
-function closeModalIfPossible(modalId) {
-    const modal = getEl(modalId);
-    if (modal) {
-        closeModal(modal);
-    }
-}
-
-function getUserLabelFromReport(report) {
-    const user = allUsers.find(u => u.id === report.userId);
-    return {
-        name: getDisplayName(user) || user?.email || report.userEmail || '',
-        email: user?.email || report.userEmail || ''
-    };
-}
-
-function getStoreMetaFromReport(report) {
-    const store = allStores.find(s => s.id === report.storeId);
-    const equipment = allEquipment.find(eq => eq.id === report.equipmentId);
-    const form = allForms.find(f => f.id === report.formId);
-    return {
-        storeName: store ? store.name || '' : '',
-        storeCode: store ? store.code || '' : '',
-        equipmentName: equipment ? equipment.name || '' : '',
-        formTitle: form ? form.title || '' : ''
-    };
-}
-
-function formatReportDate(report) {
-    const reportDateObj = report.timestamp?.toDate ? report.timestamp.toDate() : null;
-    return reportDateObj ? reportDateObj.toLocaleString('fr-FR') : '';
-}
-
-function handleExcelExport(e) {
-    e.preventDefault();
-
-    if (typeof XLSX === 'undefined') {
-        showMessage('La librairie Excel est indisponible.', 'error');
-        return;
-    }
-
-    const storeSelectEl = getEl('excel-filter-store');
-    const userSelectEl = getEl('excel-filter-user');
-    const formSelectEl = getEl('excel-filter-form');
-    const fromInput = getEl('excel-filter-from');
-    const toInput = getEl('excel-filter-to');
-
-    const filters = {
-        storeId: storeSelectEl ? storeSelectEl.value : 'all',
-        userId: userSelectEl ? userSelectEl.value : 'all',
-        formId: formSelectEl ? formSelectEl.value : 'all',
-        from: fromInput ? fromInput.value : '',
-        to: toInput ? toInput.value : ''
-    };
-
-    const filteredReports = filterReportsForExport(filters);
-    if (filteredReports.length === 0) {
-        showMessage('Aucun rapport ne correspond à ces filtres.', 'error');
-        return;
-    }
-
-    const rows = filteredReports.map(report => {
-        const meta = getStoreMetaFromReport(report);
-        const userInfo = getUserLabelFromReport(report);
-        const flatData = flattenReportData(report.data || {});
-        return [
-            formatReportDate(report),
-            meta.storeName,
-            meta.storeCode,
-            meta.equipmentName,
-            meta.formTitle,
-            userInfo.name,
-            userInfo.email,
-            flatData
-        ];
-    });
-
-    const worksheet = XLSX.utils.aoa_to_sheet([
-        ['Date', 'Magasin', 'Code', 'Appareil', 'Formulaire', 'Intervenant', 'Email', 'Champs saisis'],
-        ...rows
-    ]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Rapports');
-    const timestamp = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(workbook, `rapports_magasin_${timestamp}.xlsx`);
-
-    closeModalIfPossible('excel-modal');
-    showMessage('Extraction Excel générée.', 'success');
 }
 
 function openEditReportModal(reportId) {
@@ -1770,9 +1365,6 @@ function initializeAppEventListeners() {
     // Navigation principale
     setupNavigationEventListeners();
 
-    // Menu mobile
-    setupMobileMenuEventListeners();
-
     // Page Magasins (Formulaires et listes)
     setupStorePageEventListeners();
 
@@ -1944,10 +1536,7 @@ function setupAdminEventListeners() {
 function setupReportEventListeners() {
     const filterSelect = getEl('report-filter-store');
     if (filterSelect) {
-        filterSelect.addEventListener('change', (e) => {
-            reportFilterStoreId = e.target.value || 'all';
-            renderReportsList();
-        });
+        filterSelect.addEventListener('change', renderReportsList);
     }
 
     const searchInput = getEl('report-search-input');
@@ -1995,7 +1584,6 @@ function setupReportEventListeners() {
         resetBtn.addEventListener('click', (e) => {
             e.preventDefault();
             reportSearchTerm = '';
-            reportFilterStoreId = 'all';
             reportFilterUserId = 'all';
             reportFilterFormId = 'all';
             reportFilterFrom = '';
@@ -2018,16 +1606,6 @@ function setupReportEventListeners() {
     const editReportForm = getEl('edit-report-form');
     if (editReportForm) {
         editReportForm.addEventListener('submit', handleEditReportSubmit);
-    }
-
-    const excelBtn = getEl('open-excel-modal');
-    if (excelBtn) {
-        excelBtn.addEventListener('click', openExcelModal);
-    }
-
-    const excelForm = getEl('excel-export-form');
-    if (excelForm) {
-        excelForm.addEventListener('submit', handleExcelExport);
     }
 }
 
@@ -2085,103 +1663,6 @@ function setupModalEventListeners() {
         _confirmCallback = null;
         closeModal(getEl('confirm-modal'));
     });
-}
-
-function setupMobileMenuEventListeners() {
-    const openBtn = getEl('mobile-menu-button');
-    const closeBtn = getEl('mobile-menu-close');
-    const overlay = getEl('mobile-menu-overlay');
-    const navLinks = getEl('mobile-nav-links');
-    const accountForm = getEl('mobile-account-form');
-
-    if (openBtn) {
-        openBtn.addEventListener('click', () => {
-            if (!currentUserId) {
-                showMessage('Connectez-vous pour accéder au menu.', 'error');
-                return;
-            }
-            openMobileMenu();
-        });
-    }
-
-    [closeBtn, overlay].forEach(el => {
-        if (el) {
-            el.addEventListener('click', closeMobileMenu);
-        }
-    });
-
-    if (navLinks) {
-        navLinks.addEventListener('click', (e) => {
-            const target = e.target.closest('.mobile-nav-link');
-            if (!target) return;
-            const pageId = target.dataset.page;
-            if (pageId) {
-                navigateTo(pageId);
-            }
-            closeMobileMenu();
-        });
-    }
-
-    if (accountForm) {
-        accountForm.addEventListener('submit', handleMobileAccountFormSubmit);
-    }
-}
-
-function openMobileMenu() {
-    const panel = getEl('mobile-menu-panel');
-    if (!panel) return;
-    syncMobileAccountForm();
-    panel.classList.remove('hidden');
-}
-
-function closeMobileMenu() {
-    const panel = getEl('mobile-menu-panel');
-    if (!panel) return;
-    panel.classList.add('hidden');
-}
-
-async function handleMobileAccountFormSubmit(e) {
-    e.preventDefault();
-
-    if (!isAuthReady || !currentUserId) {
-        showMessage('Connectez-vous pour modifier votre profil.', 'error');
-        return;
-    }
-
-    const firstNameInput = getEl('mobile-account-first-name');
-    const lastNameInput = getEl('mobile-account-last-name');
-    const fonctionInput = getEl('mobile-account-fonction');
-
-    if (!firstNameInput || !lastNameInput || !fonctionInput) return;
-
-    const firstName = firstNameInput.value.trim();
-    const lastName = lastNameInput.value.trim();
-    const fonction = fonctionInput.value.trim();
-    const displayName = `${firstName} ${lastName}`.trim();
-
-    try {
-        const userDocRef = doc(usersCollection, currentUserId);
-        await updateDoc(userDocRef, {
-            firstName,
-            lastName,
-            fonction,
-            displayName,
-            updatedAt: new Date()
-        });
-
-        currentUserProfile = {
-            ...(currentUserProfile || {}),
-            firstName,
-            lastName,
-            fonction,
-            displayName
-        };
-        updateWelcomeMessage();
-        showMessage('Profil mis à jour.', 'success');
-    } catch (error) {
-        console.error('Erreur mise à jour profil:', error);
-        showMessage('Impossible de mettre à jour le profil.', 'error');
-    }
 }
 
 function closeModal(modalEl) {
@@ -3120,7 +2601,7 @@ function renderBulkQrCodes() {
 
         requestAnimationFrame(() => {
             new QRCode(document.getElementById(qrDivId), {
-                text: buildDeepLinkUrl(item) || JSON.stringify({
+                text: JSON.stringify({
                     equipmentId: item.equipmentId,
                     storeId: item.storeId,
                     formId: item.formId
@@ -3384,18 +2865,32 @@ function stopScan() {
     getEl('stop-scan-btn').classList.add('hidden');
 }
 
-function onScanSuccess(decodedText) {
+function onScanSuccess(decodedText, decodedResult) {
     console.log(`Code scanné: ${decodedText}`);
 
-    const data = parseQrPayload(decodedText);
-    if (!data) {
-        showMessage('QR code non valide.', 'error');
-        return;
-    }
+    try {
+        const data = JSON.parse(decodedText);
+        const store = allStores.find(s => s.id === data.storeId);
+        const equipment = allEquipment.find(eq => eq.id === data.equipmentId);
+        const form = allForms.find(f => f.id === data.formId);
 
-    const opened = openInterventionFormFor(data);
-    if (opened) {
-        stopScan();
+        if (store && equipment && form) {
+            currentScannedData = data;
+
+            stopScan(); 
+
+            getEl('form-subtitle').textContent = `Magasin: ${store.name}`;
+            getEl('form-datetime').value = new Date().toLocaleString('fr-FR');
+
+            renderInterventionForm(data.formId);
+            navigateTo('intervention-form');
+
+        } else {
+            showMessage("QR code non valide ou données introuvables.", "error");
+        }
+    } catch (err) {
+        console.error(err);
+        showMessage("Erreur lors de la lecture du QR code.", "error");
     }
 }
 
@@ -3405,7 +2900,7 @@ function onScanError(errorMessage) {
 
 // Modifié pour gérer la génération d'un *seul* QR Code
 function generateSingleQrCode(data, equipName, storeName) {
-    const qrDataString = buildDeepLinkUrl(data) || JSON.stringify(data);
+    const qrDataString = JSON.stringify(data);
     const qrContainer = getEl('qr-modal-content');
     const size = parseInt(getEl('qr-size-select').value) || 256;
 
@@ -3437,24 +2932,6 @@ function generateSingleQrCode(data, equipName, storeName) {
     });
 
     qrContainer.appendChild(qrDiv);
-
-    const linkBlock = document.createElement('div');
-    linkBlock.className = 'mt-4 text-sm text-gray-600 break-words text-center';
-    const linkTitle = document.createElement('p');
-    linkTitle.className = 'font-semibold';
-    linkTitle.textContent = 'Lien direct :';
-    const linkElement = document.createElement('a');
-    linkElement.href = qrDataString;
-    linkElement.target = '_blank';
-    linkElement.rel = 'noopener';
-    linkElement.className = 'text-secondary underline break-all';
-    linkElement.textContent = qrDataString;
-    const hint = document.createElement('p');
-    hint.className = 'mt-2 text-xs text-gray-500';
-    hint.textContent = "Scannez le QR code ou ouvrez ce lien avec l'appareil photo du téléphone.";
-    linkBlock.append(linkTitle, linkElement, hint);
-    qrContainer.appendChild(linkBlock);
-
     getEl('qr-modal').classList.remove('hidden');
 }
 
