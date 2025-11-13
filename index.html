@@ -19,8 +19,12 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #F3F4F6;
+            display: flex;            /* <-- AJOUTEZ CETTE LIGNE */
+            flex-direction: column;   /* <-- AJOUTEZ CETTE LIGNE */
         }
-        
+main#page-container {
+    flex-grow: 1;
+}
         /* Définition des couleurs personnalisées */
         :root {
             --color-primary: #00594E; /* Vert foncé */
@@ -37,7 +41,7 @@
         }
 
         #main-nav {
-            margin-top: -1.5rem;
+            /* Retiré le margin-top négatif car l'en-tête n'est plus là */
         }
 
         .nav-shell {
@@ -64,6 +68,7 @@
             box-shadow: 0 15px 45px -20px rgba(0, 89, 78, 0.35);
             border: 1px solid rgba(0, 89, 78, 0.08);
         }
+        
 
         .section-title {
             font-size: 1.5rem;
@@ -289,7 +294,8 @@
         @media (max-width: 640px) {
             #main-header .header-layout {
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: center;
+                text-align: center;
                 gap: 0.75rem;
             }
 
@@ -298,11 +304,29 @@
                 text-align: center;
             }
         }
+    
+/* ===== Correctifs mobile & sticky footer ===== */
+html, body { height: 100%; }
+body {
+  min-height: 100svh;            /* tient compte de la barre d'adresse mobile */
+  display: flex;
+  flex-direction: column;
+}
+main#page-container {
+  flex: 1 0 auto;                /* prend tout l'espace disponible */
+}
+footer#site-footer {
+  margin-top: auto;               /* pousse le footer en bas */
+  padding-bottom: max(1rem, env(safe-area-inset-bottom)); /* zone sûre iOS */
+}
+/* Masquer la zone du lecteur quand elle est vide (évite une grande zone blanche) */
+#qr-reader:empty { display: none; }
+
     </style>
 </head>
 <body class="min-h-screen">
 
-    <!-- En-tête -->
+    <!-- En-tête (maintenant caché en permanence) -->
     <header id="main-header" class="relative overflow-hidden text-white hidden">
         <div class="absolute inset-0 bg-gradient-to-r from-[#00594E] via-[#00463C] to-[#E56A54]"></div>
         <div class="absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-white/5 blur-3xl"></div>
@@ -322,7 +346,8 @@
                             </p>
                         </div>
                     </div>
-                    <div id="user-info-panel" class="user-info-panel flex flex-col items-center gap-3 text-sm bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 shadow-lg shadow-black/10">
+                    <!-- Le panneau utilisateur est déplacé dans la barre de navigation -->
+                    <div id="user-info-panel" class="user-info-panel flex flex-col items-center gap-3 text-sm bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 shadow-lg shadow-black/10 hidden">
                         <span id="user-welcome-display" class="text-base font-semibold hidden"></span>
                         <span id="user-role-display" class="badge bg-white/20 text-white hidden"></span>
                         <button id="auth-button" class="btn btn-secondary text-sm px-5 py-2">Déconnexion</button>
@@ -333,17 +358,25 @@
     </header>
 
     <!-- Navigation principale (Onglets) -->
-    <div id="main-nav" class="sticky top-0 z-30 hidden px-4 sm:px-6 lg:px-8">
+    <div id="main-nav" class="sticky top-0 z-30 hidden px-4 sm:px-6 lg:px-8 py-4"> <!-- Ajout de padding vertical -->
         <div class="nav-shell max-w-6xl mx-auto">
-            <div id="main-nav-container" class="px-3 sm:px-6 lg:px-8 flex items-center gap-3 overflow-x-auto">
+            <div id="main-nav-container" class="px-3 sm:px-6 lg:px-8 flex items-center gap-3 overflow-x-auto justify-between">
                 <!-- Onglets pour tous -->
-                <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
+                <div class="flex items-center gap-3">
+                    <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
+                    <!-- Onglets Admin seulement -->
+                    <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
+                    <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
+                    <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
+                    <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
+                </div>
 
-                <!-- Onglets Admin seulement -->
-                <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
-                <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
-                <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
-                <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
+                <!-- Panneau utilisateur déplacé ici -->
+                <div id="nav-user-info" class="flex items-center gap-3 text-sm">
+                    <span id="user-welcome-display-nav" class="text-base font-semibold hidden text-primary-dark"></span>
+                    <span id="user-role-display-nav" class="badge bg-primary/20 text-primary hidden"></span>
+                    <button id="auth-button-nav" class="btn btn-secondary text-sm px-4 py-1.5">Déconnexion</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1091,16 +1124,24 @@
         }
 
         function updateWelcomeMessage() {
-            const welcomeDisplay = getEl('user-welcome-display');
-            if (!welcomeDisplay) return;
+            // MODIFIÉ: Mettre à jour les DEUX panneaux (l'ancien caché et le nouveau)
+            const welcomeDisplay = getEl('user-welcome-display'); // Ancien (caché)
+            const welcomeDisplayNav = getEl('user-welcome-display-nav'); // Nouveau (dans la nav)
+
+            if (!welcomeDisplay || !welcomeDisplayNav) return;
 
             const firstName = getFirstName(currentUserProfile);
             if (firstName) {
-                welcomeDisplay.textContent = `Bienvenue ${firstName}`;
+                const message = `Bienvenue ${firstName}`;
+                welcomeDisplay.textContent = message;
+                welcomeDisplayNav.textContent = message;
                 welcomeDisplay.classList.remove('hidden');
+                welcomeDisplayNav.classList.remove('hidden');
             } else {
                 welcomeDisplay.textContent = '';
+                welcomeDisplayNav.textContent = '';
                 welcomeDisplay.classList.add('hidden');
+                welcomeDisplayNav.classList.add('hidden');
             }
         }
 
@@ -1213,7 +1254,9 @@
         }
         
         async function setupAuthListener() {
-            const authButton = getEl('auth-button');
+            // MODIFIÉ: Gérer les deux boutons de déconnexion
+            const authButton = getEl('auth-button'); // Ancien
+            const authButtonNav = getEl('auth-button-nav'); // Nouveau
 
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
@@ -1266,10 +1309,15 @@
                     hideAllPages();
                     getEl('page-login').classList.remove('hidden');
 
+                    // MODIFIÉ: Cacher les infos utilisateur des deux emplacements
                     const welcomeDisplay = getEl('user-welcome-display');
                     if (welcomeDisplay) welcomeDisplay.classList.add('hidden');
                     const roleDisplay = getEl('user-role-display');
                     if (roleDisplay) roleDisplay.classList.add('hidden');
+                    const welcomeDisplayNav = getEl('user-welcome-display-nav');
+                    if (welcomeDisplayNav) welcomeDisplayNav.classList.add('hidden');
+                    const roleDisplayNav = getEl('user-role-display-nav');
+                    if (roleDisplayNav) roleDisplayNav.classList.add('hidden');
 
                     delete document.body.dataset.role;
                     allUsers = [];
@@ -1287,11 +1335,14 @@
                 }
             });
 
-            if (authButton) authButton.addEventListener('click', () => {
+            // MODIFIÉ: Gérer les deux boutons
+            const logoutHandler = () => {
                 if (auth.currentUser) {
                     signOut(auth);
                 }
-            });
+            };
+            if (authButton) authButton.addEventListener('click', logoutHandler);
+            if (authButtonNav) authButtonNav.addEventListener('click', logoutHandler);
         }
         
         // Affiche l'UI en fonction du rôle
@@ -1333,17 +1384,23 @@
             }
             
             // Pour "user" et "admin", afficher l'application
-            getEl('main-header').classList.remove('hidden');
+            // MODIFICATION UTILISATEUR: Ne plus afficher le main-header
+            // getEl('main-header').classList.remove('hidden');
             getEl('main-nav').classList.remove('hidden');
 
             document.body.dataset.role = role;
             updateWelcomeMessage();
 
-            const roleDisplay = getEl('user-role-display');
-            if (roleDisplay) {
+            // MODIFIÉ: Mettre à jour les DEUX badges de rôle
+            const roleDisplay = getEl('user-role-display'); // Ancien
+            const roleDisplayNav = getEl('user-role-display-nav'); // Nouveau
+
+            if (roleDisplay && roleDisplayNav) {
                 const roleLabel = role === 'admin' ? 'ADMINISTRATEUR' : (role === 'user' ? 'UTILISATEUR' : 'EN ATTENTE');
                 roleDisplay.textContent = roleLabel;
+                roleDisplayNav.textContent = roleLabel;
                 roleDisplay.classList.remove('hidden');
+                roleDisplayNav.classList.remove('hidden');
             }
 
             setCreateUserFormVisibility(false);
@@ -3968,6 +4025,14 @@
         // Démarrage de l'application
         document.addEventListener('DOMContentLoaded', initializeFirebase);
     </script>
-
+         </div>
+     <footer class="mt-12 py-6 bg-primary text-white text-center" id="site-footer">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <p class="text-sm text-white/80">
+            © 2025 Gest'Appareils. Tous droits réservés.
+        </p>
+    </div>
+</footer>
+    </div>
 </body>
 </html>
