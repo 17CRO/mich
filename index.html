@@ -57,13 +57,9 @@
     <div id="main-nav" class="sticky top-0 z-30 hidden px-4 sm:px-6 lg:px-8 py-4"> <!-- Ajout de padding vertical -->
         <div class="nav-shell max-w-6xl mx-auto">
             <div id="main-nav-container" class="px-3 sm:px-6 lg:px-8 flex items-center gap-3 justify-between">
-                <div class="flex items-center gap-3 flex-1">
-                    <button id="mobile-menu-button" type="button" aria-label="Ouvrir le menu" class="hamburger-button lg:hidden">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
+                <div class="nav-tabs-wrapper flex items-center gap-3 flex-1">
                     <div class="flex items-center gap-3 overflow-x-auto w-full">
+                        <button id="nav-tab-dashboard" data-page="dashboard" class="nav-tab nav-tab-inactive admin-only hidden">Tableau de bord</button>
                         <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
                         <!-- Onglets Admin seulement -->
                         <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
@@ -73,11 +69,19 @@
                     </div>
                 </div>
 
-                <!-- Panneau utilisateur déplacé ici -->
-                <div id="nav-user-info" class="hidden md:flex items-center gap-3 text-sm">
-                    <span id="user-welcome-display-nav" class="text-base font-semibold hidden text-primary-dark"></span>
-                    <span id="user-role-display-nav" class="badge bg-primary/20 text-primary hidden"></span>
-                    <button id="auth-button-nav" class="btn btn-secondary text-sm px-4 py-1.5">Déconnexion</button>
+                <div class="flex items-center gap-3">
+                    <span id="mobile-main-welcome" class="text-base font-semibold text-primary-dark md:hidden hidden"></span>
+                    <button id="mobile-menu-button" type="button" aria-label="Ouvrir le menu" class="hamburger-button lg:hidden">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <!-- Panneau utilisateur déplacé ici -->
+                    <div id="nav-user-info" class="hidden md:flex items-center gap-3 text-sm">
+                        <span id="user-welcome-display-nav" class="text-base font-semibold hidden text-primary-dark"></span>
+                        <span id="user-role-display-nav" class="badge bg-primary/20 text-primary hidden"></span>
+                        <button id="auth-button-nav" class="btn btn-secondary text-sm px-4 py-1.5">Déconnexion</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -383,6 +387,162 @@
             </div>
         </div>
 
+        <!-- ================= PAGE 4.5: TABLEAU DE BORD (Admin) ================= -->
+        <div id="page-dashboard" class="page hidden admin-only">
+            <div class="card p-6 space-y-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary-dark">Tableau de bord</h2>
+                        <p class="text-sm text-gray-500">Analyse en temps réel des visites magasin.</p>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        Mise à jour <span id="dashboard-last-update">-</span>
+                    </div>
+                </div>
+
+                <div class="dashboard-filter-panel space-y-4">
+                    <div class="grid gap-4 lg:grid-cols-3">
+                        <div class="relative">
+                            <label class="block text-gray-700 font-medium mb-1">Périodes rapides</label>
+                            <button type="button" class="form-field text-left quick-range-trigger" data-range-target="dashboard">Choisir une période</button>
+                            <div id="dashboard-quick-range-menu" class="quick-range-menu" data-range-target="dashboard"></div>
+                            <p class="form-helper">Présélectionnez une période pour vos KPIs.</p>
+                        </div>
+                        <div>
+                            <label for="dashboard-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
+                            <input type="date" id="dashboard-filter-from" class="form-field">
+                        </div>
+                        <div>
+                            <label for="dashboard-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
+                            <input type="date" id="dashboard-filter-to" class="form-field">
+                        </div>
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <label for="dashboard-filter-store" class="block text-gray-700 font-medium mb-1">Magasins</label>
+                            <select id="dashboard-filter-store" class="form-field custom-select multi-select-field" multiple size="6">
+                                <option value="all">Tous les magasins</option>
+                            </select>
+                            <p class="form-helper">Affinez par zone.</p>
+                        </div>
+                        <div>
+                            <label for="dashboard-filter-user" class="block text-gray-700 font-medium mb-1">Intervenants</label>
+                            <select id="dashboard-filter-user" class="form-field custom-select multi-select-field" multiple size="6">
+                                <option value="all">Tous les intervenants</option>
+                            </select>
+                            <p class="form-helper">Comparez plusieurs équipes.</p>
+                        </div>
+                        <div>
+                            <label for="dashboard-filter-form" class="block text-gray-700 font-medium mb-1">Types de formulaires</label>
+                            <select id="dashboard-filter-form" class="form-field custom-select multi-select-field" multiple size="6">
+                                <option value="all">Tous les formulaires</option>
+                            </select>
+                            <p class="form-helper">Filtrez par parcours.</p>
+                        </div>
+                        <div>
+                            <label for="dashboard-filter-type" class="block text-gray-700 font-medium mb-1">Types d'appareils</label>
+                            <select id="dashboard-filter-type" class="form-field custom-select multi-select-field" multiple size="6">
+                                <option value="all">Tous les types</option>
+                            </select>
+                            <p class="form-helper">Analyse par typologie.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 justify-end">
+                        <button id="dashboard-reset-filters" type="button" class="btn btn-gray">Réinitialiser</button>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 lg:grid-cols-4">
+                    <div class="dashboard-card">
+                        <p class="dashboard-card-label">Visites totales</p>
+                        <p id="dashboard-total-visits" class="dashboard-card-value">0</p>
+                        <p class="dashboard-card-subtext">Toutes périodes confondues</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <p class="dashboard-card-label">Aujourd'hui</p>
+                        <p id="dashboard-today-visits" class="dashboard-card-value">0</p>
+                        <p class="dashboard-card-subtext">Rapports du jour</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <p class="dashboard-card-label">Cette semaine</p>
+                        <p id="dashboard-week-visits" class="dashboard-card-value">0</p>
+                        <p class="dashboard-card-subtext">Lundi &rarr; Dimanche</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <p class="dashboard-card-label">Ce mois-ci</p>
+                        <p id="dashboard-month-visits" class="dashboard-card-value">0</p>
+                        <p class="dashboard-card-subtext">1er &rarr; fin du mois</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 lg:grid-cols-3">
+                    <div class="dashboard-panel">
+                        <div class="dashboard-panel-header">
+                            <h3>Top magasins actifs</h3>
+                            <span id="dashboard-top-store-total" class="dashboard-panel-counter">0</span>
+                        </div>
+                        <div id="dashboard-top-stores" class="space-y-3"></div>
+                    </div>
+                    <div class="dashboard-panel">
+                        <div class="dashboard-panel-header">
+                            <h3>Top formulaires</h3>
+                            <span id="dashboard-top-form-total" class="dashboard-panel-counter">0</span>
+                        </div>
+                        <div id="dashboard-top-forms" class="space-y-3"></div>
+                    </div>
+                    <div class="dashboard-panel">
+                        <div class="dashboard-panel-header">
+                            <h3>Couverture magasins</h3>
+                            <span id="dashboard-coverage-percent" class="dashboard-panel-counter">0%</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="progress-wrapper">
+                                <div id="dashboard-coverage-bar" class="progress-bar"></div>
+                            </div>
+                            <p id="dashboard-coverage-details" class="text-sm text-gray-600"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 lg:grid-cols-2">
+                    <div class="dashboard-panel">
+                        <div class="dashboard-panel-header">
+                            <h3>Progression du volume</h3>
+                            <span class="dashboard-panel-counter">6 derniers mois</span>
+                        </div>
+                        <div id="dashboard-trend" class="space-y-3"></div>
+                    </div>
+                    <div class="dashboard-panel">
+                        <div class="dashboard-panel-header">
+                            <h3>Répartition par formulaire</h3>
+                            <span class="dashboard-panel-counter">%</span>
+                        </div>
+                        <div id="dashboard-form-distribution" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 lg:grid-cols-2">
+                    <div class="dashboard-panel">
+                        <div class="dashboard-panel-header">
+                            <h3>Derniers visiteurs</h3>
+                            <span class="dashboard-panel-counter">5</span>
+                        </div>
+                        <div id="dashboard-latest-visits" class="space-y-3"></div>
+                    </div>
+                    <div class="dashboard-panel">
+                        <div class="dashboard-panel-header">
+                            <h3>Indicateur clé</h3>
+                            <span id="dashboard-activity-rate" class="dashboard-panel-counter">0%</span>
+                        </div>
+                        <p class="text-sm text-gray-600">Taux d'activité (visites filtrées / total global).</p>
+                        <div class="progress-wrapper">
+                            <div id="dashboard-activity-bar" class="progress-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ================= PAGE 5: RAPPORTS (Stats) ================= -->
         <div id="page-reports" class="page hidden">
             <div class="card p-6 space-y-6">
@@ -401,22 +561,25 @@
                     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <div>
                             <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par magasin</label>
-                            <select id="report-filter-store" class="form-field custom-select">
+                            <select id="report-filter-store" class="form-field custom-select multi-select-field" multiple size="5">
                                 <option value="all">Tous les magasins</option>
                                 <!-- Options remplies par JS -->
                             </select>
+                            <p class="form-helper">Cochez plusieurs magasins pour filtrer simultanément.</p>
                         </div>
                         <div>
                             <label for="report-filter-user" class="block text-gray-700 font-medium mb-1">Filtrer par intervenant</label>
-                            <select id="report-filter-user" class="form-field custom-select">
+                            <select id="report-filter-user" class="form-field custom-select multi-select-field" multiple size="5">
                                 <option value="all">Tous les intervenants</option>
                             </select>
+                            <p class="form-helper">Choisissez un ou plusieurs intervenants grâce aux cases à cocher.</p>
                         </div>
                         <div>
                             <label for="report-filter-form" class="block text-gray-700 font-medium mb-1">Filtrer par formulaire</label>
-                            <select id="report-filter-form" class="form-field custom-select">
+                            <select id="report-filter-form" class="form-field custom-select multi-select-field" multiple size="5">
                                 <option value="all">Tous les formulaires</option>
                             </select>
+                            <p class="form-helper">Sélectionnez un ou plusieurs formulaires.</p>
                         </div>
                         <div class="md:col-span-2 xl:col-span-3">
                             <label for="report-search-input" class="block text-gray-700 font-medium mb-1">Rechercher</label>
@@ -429,6 +592,12 @@
                         <div>
                             <label for="report-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
                             <input id="report-filter-to" type="date" class="form-field">
+                        </div>
+                        <div class="relative">
+                            <label class="block text-gray-700 font-medium mb-1">Périodes rapides</label>
+                            <button type="button" class="form-field text-left quick-range-trigger" data-range-target="reports">Choisir une période</button>
+                            <div id="reports-quick-range-menu" class="quick-range-menu" data-range-target="reports"></div>
+                            <p class="form-helper">Appliquez instantanément une plage prédéfinie.</p>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-3">
@@ -571,21 +740,24 @@
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
                         <label for="excel-filter-store" class="block text-gray-700 font-medium mb-1">Magasin</label>
-                        <select id="excel-filter-store" class="form-field custom-select">
+                        <select id="excel-filter-store" class="form-field custom-select multi-select-field" multiple size="5">
                             <option value="all">Tous les magasins</option>
                         </select>
+                        <p class="form-helper">Ciblez un ou plusieurs magasins simultanément.</p>
                     </div>
                     <div>
                         <label for="excel-filter-user" class="block text-gray-700 font-medium mb-1">Intervenant</label>
-                        <select id="excel-filter-user" class="form-field custom-select">
+                        <select id="excel-filter-user" class="form-field custom-select multi-select-field" multiple size="5">
                             <option value="all">Tous les intervenants</option>
                         </select>
+                        <p class="form-helper">Sélectionnez librement plusieurs options en cochant les valeurs voulues.</p>
                     </div>
                     <div>
                         <label for="excel-filter-form" class="block text-gray-700 font-medium mb-1">Formulaire</label>
-                        <select id="excel-filter-form" class="form-field custom-select">
+                        <select id="excel-filter-form" class="form-field custom-select multi-select-field" multiple size="5">
                             <option value="all">Tous les formulaires</option>
                         </select>
+                        <p class="form-helper">Choisissez les formulaires à exporter.</p>
                     </div>
                     <div>
                         <label for="excel-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
@@ -594,6 +766,12 @@
                     <div>
                         <label for="excel-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
                         <input type="date" id="excel-filter-to" class="form-field">
+                    </div>
+                    <div class="relative">
+                        <label class="block text-gray-700 font-medium mb-1">Périodes rapides</label>
+                        <button type="button" class="form-field text-left quick-range-trigger" data-range-target="excel">Choisir une période</button>
+                        <div id="excel-quick-range-menu" class="quick-range-menu" data-range-target="excel"></div>
+                        <p class="form-helper">Pré-remplissez vos dates avant l'extraction.</p>
                     </div>
                 </div>
                 <div class="flex flex-wrap justify-end gap-2">

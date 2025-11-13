@@ -83,15 +83,26 @@ let reportSearchTerm = '';
 let openReportStoreIds = new Set();
 let allUsers = [];
 let userSearchTerm = '';
-let reportFilterStoreId = 'all';
-let reportFilterUserId = 'all';
-let reportFilterFormId = 'all';
+let reportFilterStoreIds = [];
+let reportFilterUserIds = [];
+let reportFilterFormIds = [];
 let reportFilterFrom = '';
 let reportFilterTo = '';
+let dashboardFilterStoreIds = [];
+let dashboardFilterUserIds = [];
+let dashboardFilterFormIds = [];
+let dashboardFilterTypeIds = [];
+let dashboardFilterFrom = '';
+let dashboardFilterTo = '';
 let isCreateUserFormOpen = false;
 let currentBulkQrData = [];
 let messageTimeoutId = null;
 let messageActionHandler = null;
+let activeQuickRangeMenu = null;
+let activeMultiSelectState = null;
+let multiSelectEnhancementsReady = false;
+const enhancedMultiSelects = new Map();
+const quickRangeSelections = {};
 
 captureDeepLinkFromUrl();
 
@@ -108,6 +119,20 @@ const equipmentTypeModels = {
     "Porte Auto": "🚪", "Froid": "🧊", "Cuisine": "🍳", "Lumière": "💡",
     "Extincteur": "🧯", "Caméra": "📷", "Alarme": "🚨"
 };
+
+const DATE_PRESETS = [
+    { value: 'today', label: "Aujourd'hui" },
+    { value: 'yesterday', label: 'Hier' },
+    { value: 'this_week', label: 'Cette semaine' },
+    { value: 'last_week', label: 'La semaine dernière' },
+    { value: 'this_month', label: 'Ce mois-ci' },
+    { value: 'last_month', label: 'Le mois dernier' },
+    { value: 'last_3_months', label: 'Les 3 derniers mois' },
+    { value: 'last_6_months', label: 'Les 6 derniers mois' },
+    { value: 'this_year', label: 'Cette année' },
+    { value: 'last_365_days', label: 'Les 365 derniers jours' },
+    { value: 'since_beginning', label: 'Depuis le début' }
+];
 
 // Fonction utilitaire pour récupérer un élément (évite les répétitions)
 function getEl(id) {
@@ -146,6 +171,572 @@ function getFirstName(profile) {
     return '';
 }
 
+function formatDateForInputValue(date) {
+    if (!(date instanceof Date)) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function getStartOfDay(date) {
+    const clone = new Date(date);
+    clone.setHours(0, 0, 0, 0);
+    return clone;
+}
+
+function getEndOfDay(date) {
+    const clone = new Date(date);
+    clone.setHours(23, 59, 59, 999);
+    return clone;
+}
+
+function getStartOfWeek(date) {
+    const clone = getStartOfDay(date);
+    const day = clone.getDay();
+    const diff = day === 0 ? 6 : day - 1; // Lundi = 1
+    clone.setDate(clone.getDate() - diff);
+    return clone;
+}
+
+function getEndOfWeek(date) {
+    const start = getStartOfWeek(date);
+    start.setDate(start.getDate() + 6);
+    return getEndOfDay(start);
+}
+
+function getPresetRange(value) {
+    const today = new Date();
+    switch (value) {
+        case 'today':
+            return { from: formatDateForInputValue(getStartOfDay(today)), to: formatDateForInputValue(getEndOfDay(today)) };
+        case 'yesterday': {
+            const day = new Date(today);
+            day.setDate(day.getDate() - 1);
+            return { from: formatDateForInputValue(getStartOfDay(day)), to: formatDateForInputValue(getEndOfDay(day)) };
+        }
+        case 'this_week':
+            return { from: formatDateForInputValue(getStartOfWeek(today)), to: formatDateForInputValue(getEndOfWeek(today)) };
+        case 'last_week': {
+            const start = getStartOfWeek(today);
+            start.setDate(start.getDate() - 7);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            return { from: formatDateForInputValue(getStartOfDay(start)), to: formatDateForInputValue(getEndOfDay(end)) };
+        }
+        case 'this_month': {
+            const start = new Date(today.getFullYear(), today.getMonth(), 1);
+            const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            return { from: formatDateForInputValue(getStartOfDay(start)), to: formatDateForInputValue(getEndOfDay(end)) };
+        }
+        case 'last_month': {
+            const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const end = new Date(today.getFullYear(), today.getMonth(), 0);
+            return { from: formatDateForInputValue(getStartOfDay(start)), to: formatDateForInputValue(getEndOfDay(end)) };
+        }
+        case 'last_3_months': {
+            const start = new Date(today);
+            start.setMonth(start.getMonth() - 3);
+            return { from: formatDateForInputValue(getStartOfDay(start)), to: formatDateForInputValue(getEndOfDay(today)) };
+        }
+        case 'last_6_months': {
+            const start = new Date(today);
+            start.setMonth(start.getMonth() - 6);
+            return { from: formatDateForInputValue(getStartOfDay(start)), to: formatDateForInputValue(getEndOfDay(today)) };
+        }
+        case 'this_year': {
+            const start = new Date(today.getFullYear(), 0, 1);
+            const end = new Date(today.getFullYear(), 11, 31);
+            return { from: formatDateForInputValue(getStartOfDay(start)), to: formatDateForInputValue(getEndOfDay(end)) };
+        }
+        case 'last_365_days': {
+            const start = new Date(today);
+            start.setDate(start.getDate() - 364);
+            return { from: formatDateForInputValue(getStartOfDay(start)), to: formatDateForInputValue(getEndOfDay(today)) };
+        }
+        case 'since_beginning':
+            return { from: '', to: '' };
+        default:
+            return null;
+    }
+}
+
+function normalizeMultiSelectSelection(selectEl) {
+    if (!selectEl) return [];
+    const values = Array.from(selectEl.selectedOptions).map(opt => opt.value);
+    if (values.includes('all') || values.length === 0) {
+        Array.from(selectEl.options).forEach(opt => {
+            opt.selected = opt.value === 'all';
+        });
+        return [];
+    }
+    Array.from(selectEl.options).forEach(opt => {
+        if (opt.value === 'all') opt.selected = false;
+    });
+    return values;
+}
+
+function setMultiSelectValues(selectEl, values = []) {
+    if (!selectEl) return;
+    const selections = Array.isArray(values) ? values : [];
+    const hasSelection = selections.length > 0;
+    Array.from(selectEl.options).forEach(opt => {
+        if (opt.value === 'all') {
+            opt.selected = !hasSelection;
+        } else {
+            opt.selected = hasSelection ? selections.includes(opt.value) : false;
+        }
+    });
+    syncEnhancedMultiSelectState(selectEl);
+}
+
+function readMultiSelectValues(selectEl) {
+    if (!selectEl) return [];
+    const values = Array.from(selectEl.selectedOptions).map(opt => opt.value);
+    if (values.includes('all') || values.length === 0) return [];
+    return values;
+}
+
+function populateMultiSelectOptions(config) {
+    const selectEl = typeof config.elementId === 'string' ? getEl(config.elementId) : config.element;
+    if (!selectEl) {
+        return Array.isArray(config.selectedValues) ? [...config.selectedValues] : [];
+    }
+    const items = Array.isArray(config.items) ? config.items : [];
+    const getValue = typeof config.getValue === 'function' ? config.getValue : (() => null);
+    const getLabel = typeof config.getLabel === 'function' ? config.getLabel : (() => '');
+    const includeAll = config.includeAll !== false;
+    const allLabel = config.allLabel || 'Tous';
+    const previousValues = Array.isArray(config.selectedValues) ? [...config.selectedValues] : [];
+
+    const validValues = new Set();
+    selectEl.innerHTML = '';
+
+    if (includeAll) {
+        const option = document.createElement('option');
+        option.value = 'all';
+        option.textContent = allLabel;
+        selectEl.appendChild(option);
+    }
+
+    items.forEach(item => {
+        const value = getValue(item);
+        if (!value) return;
+        validValues.add(value);
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = getLabel(item) || value;
+        selectEl.appendChild(option);
+    });
+
+    const sanitizedValues = previousValues.filter(val => validValues.has(val));
+    setMultiSelectValues(selectEl, sanitizedValues);
+    rebuildEnhancedMultiSelectOptions(selectEl);
+    return sanitizedValues;
+}
+
+function setupMultiSelectEnhancements() {
+    if (multiSelectEnhancementsReady) return;
+    const selects = document.querySelectorAll('.multi-select-field');
+    selects.forEach(selectEl => enhanceMultiSelectField(selectEl));
+    document.addEventListener('click', (event) => {
+        if (event.target.closest('.multi-select-dropdown') || event.target.closest('.multi-select-trigger')) {
+            return;
+        }
+        closeActiveMultiSelectMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeActiveMultiSelectMenu();
+        }
+    });
+    multiSelectEnhancementsReady = true;
+}
+
+function enhanceMultiSelectField(selectEl) {
+    if (!selectEl || enhancedMultiSelects.has(selectEl)) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'multi-select-enhancement';
+    selectEl.parentNode.insertBefore(wrapper, selectEl);
+    wrapper.appendChild(selectEl);
+    selectEl.classList.add('multi-select-native-hidden');
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'multi-select-trigger form-field';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+
+    const summary = document.createElement('span');
+    summary.className = 'multi-select-summary';
+    trigger.appendChild(summary);
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'multi-select-dropdown';
+    dropdown.dataset.enhancedSelect = selectEl.id || '';
+
+    const optionsContainer = document.createElement('div');
+    optionsContainer.className = 'multi-select-options';
+    dropdown.appendChild(optionsContainer);
+
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(dropdown);
+
+    const state = {
+        selectEl,
+        wrapper,
+        trigger,
+        dropdown,
+        optionsContainer,
+        summary,
+        defaultLabel: selectEl.querySelector('option[value="all"]')?.textContent?.trim() || 'Tous'
+    };
+
+    trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (state.dropdown.classList.contains('active')) {
+            closeActiveMultiSelectMenu();
+        } else {
+            if (activeMultiSelectState && activeMultiSelectState !== state) {
+                closeActiveMultiSelectMenu();
+            }
+            state.dropdown.classList.add('active');
+            state.trigger.setAttribute('aria-expanded', 'true');
+            activeMultiSelectState = state;
+        }
+    });
+
+    dropdown.addEventListener('change', (event) => {
+        const checkbox = event.target.closest('input[type="checkbox"]');
+        if (!checkbox) return;
+        const value = checkbox.value;
+        if (value === 'all') {
+            setMultiSelectValues(selectEl, []);
+        } else {
+            const currentValues = new Set(readMultiSelectValues(selectEl));
+            if (checkbox.checked) {
+                currentValues.add(value);
+            } else {
+                currentValues.delete(value);
+            }
+            setMultiSelectValues(selectEl, Array.from(currentValues));
+        }
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    enhancedMultiSelects.set(selectEl, state);
+    rebuildEnhancedMultiSelectOptions(selectEl);
+}
+
+function rebuildEnhancedMultiSelectOptions(selectEl) {
+    const state = enhancedMultiSelects.get(selectEl);
+    if (!state) return;
+    state.defaultLabel = selectEl.querySelector('option[value="all"]')?.textContent?.trim() || state.defaultLabel || 'Tous';
+    state.optionsContainer.innerHTML = '';
+    Array.from(selectEl.options).forEach(option => {
+        if (!option.value) return;
+        const optionRow = document.createElement('label');
+        optionRow.className = 'multi-select-option';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = option.value;
+        checkbox.checked = option.selected;
+        checkbox.disabled = option.disabled;
+        optionRow.appendChild(checkbox);
+        const text = document.createElement('span');
+        text.textContent = option.textContent || option.value;
+        optionRow.appendChild(text);
+        state.optionsContainer.appendChild(optionRow);
+    });
+    syncEnhancedMultiSelectState(selectEl);
+}
+
+function syncEnhancedMultiSelectState(selectEl) {
+    const state = enhancedMultiSelects.get(selectEl);
+    if (!state) return;
+    const selectedValues = new Set(Array.from(selectEl.options).filter(opt => opt.selected).map(opt => opt.value));
+    state.optionsContainer.querySelectorAll('input[type="checkbox"]').forEach(input => {
+        input.checked = selectedValues.has(input.value);
+    });
+    state.summary.textContent = getMultiSelectSummary(selectEl, state.defaultLabel);
+}
+
+function getMultiSelectSummary(selectEl, defaultLabel = 'Tous') {
+    if (!selectEl) return defaultLabel;
+    const activeOptions = Array.from(selectEl.options)
+        .filter(opt => opt.value !== 'all' && opt.selected)
+        .map(opt => opt.textContent.trim());
+    if (activeOptions.length === 0) {
+        return defaultLabel;
+    }
+    if (activeOptions.length <= 2) {
+        return activeOptions.join(', ');
+    }
+    return `${activeOptions.slice(0, 2).join(', ')} +${activeOptions.length - 2}`;
+}
+
+function closeActiveMultiSelectMenu() {
+    if (!activeMultiSelectState) return;
+    activeMultiSelectState.dropdown.classList.remove('active');
+    activeMultiSelectState.trigger.setAttribute('aria-expanded', 'false');
+    activeMultiSelectState = null;
+}
+
+const QUICK_RANGE_TARGETS = {
+    reports: {
+        fromInput: 'report-filter-from',
+        toInput: 'report-filter-to',
+        onApply: () => {
+            const fromInput = getEl('report-filter-from');
+            const toInput = getEl('report-filter-to');
+            reportFilterFrom = fromInput ? fromInput.value : '';
+            reportFilterTo = toInput ? toInput.value : '';
+            renderReportsList();
+        }
+    },
+    excel: {
+        fromInput: 'excel-filter-from',
+        toInput: 'excel-filter-to'
+    },
+    dashboard: {
+        fromInput: 'dashboard-filter-from',
+        toInput: 'dashboard-filter-to',
+        onApply: () => {
+            const fromInput = getEl('dashboard-filter-from');
+            const toInput = getEl('dashboard-filter-to');
+            dashboardFilterFrom = fromInput ? fromInput.value : '';
+            dashboardFilterTo = toInput ? toInput.value : '';
+            renderDashboard();
+        }
+    }
+};
+
+function applyQuickRangeSelection(targetKey, presetValueOrRange) {
+    const config = QUICK_RANGE_TARGETS[targetKey];
+    if (!config) return;
+    let range = null;
+    if (typeof presetValueOrRange === 'string') {
+        range = getPresetRange(presetValueOrRange);
+    } else if (presetValueOrRange && typeof presetValueOrRange === 'object') {
+        range = presetValueOrRange;
+    }
+    if (!range) return;
+    const fromValue = typeof range.from === 'string' ? range.from : '';
+    const toValue = typeof range.to === 'string' ? range.to : '';
+    const fromInput = config.fromInput ? getEl(config.fromInput) : null;
+    const toInput = config.toInput ? getEl(config.toInput) : null;
+    if (fromInput) fromInput.value = fromValue;
+    if (toInput) toInput.value = toValue;
+    if (typeof config.onApply === 'function') {
+        config.onApply({ from: fromValue, to: toValue });
+    }
+}
+
+function getQuickRangeSelectionSet(targetKey) {
+    if (!quickRangeSelections[targetKey]) {
+        quickRangeSelections[targetKey] = new Set();
+    }
+    return quickRangeSelections[targetKey];
+}
+
+function computeCombinedQuickRange(values = []) {
+    if (!values || values.length === 0) {
+        return { from: '', to: '' };
+    }
+    if (values.includes('since_beginning')) {
+        return { from: '', to: '' };
+    }
+    let minDate = null;
+    let maxDate = null;
+    values.forEach(value => {
+        const presetRange = getPresetRange(value);
+        if (!presetRange) return;
+        if (presetRange.from) {
+            minDate = !minDate || presetRange.from < minDate ? presetRange.from : minDate;
+        }
+        if (presetRange.to) {
+            maxDate = !maxDate || presetRange.to > maxDate ? presetRange.to : maxDate;
+        }
+    });
+    return {
+        from: minDate || '',
+        to: maxDate || ''
+    };
+}
+
+function getQuickRangeLabel(value) {
+    const preset = DATE_PRESETS.find(p => p.value === value);
+    return preset ? preset.label : value;
+}
+
+function updateQuickRangeTriggerLabel(targetKey) {
+    const selection = Array.from(getQuickRangeSelectionSet(targetKey));
+    const summary = selection.map(getQuickRangeLabel);
+    document.querySelectorAll(`.quick-range-trigger[data-range-target="${targetKey}"]`).forEach(trigger => {
+        const defaultLabel = trigger.dataset.defaultLabel || trigger.textContent.trim() || 'Choisir une période';
+        if (summary.length === 0) {
+            trigger.textContent = defaultLabel;
+        } else if (summary.length <= 2) {
+            trigger.textContent = summary.join(', ');
+        } else {
+            trigger.textContent = `${summary.slice(0, 2).join(', ')} +${summary.length - 2}`;
+        }
+    });
+}
+
+function syncQuickRangeMenuState(targetKey) {
+    const menu = document.querySelector(`.quick-range-menu[data-range-target="${targetKey}"]`);
+    if (!menu) return;
+    const selection = getQuickRangeSelectionSet(targetKey);
+    menu.querySelectorAll('input[type="checkbox"]').forEach(input => {
+        input.checked = selection.has(input.value);
+    });
+    const clearBtn = menu.querySelector('button[data-action="clear"]');
+    if (clearBtn) {
+        clearBtn.disabled = selection.size === 0;
+    }
+}
+
+function clearQuickRangeSelection(targetKey) {
+    const selection = getQuickRangeSelectionSet(targetKey);
+    selection.clear();
+    syncQuickRangeMenuState(targetKey);
+    updateQuickRangeTriggerLabel(targetKey);
+}
+
+function applyQuickRangeFromSelection(targetKey) {
+    const selection = Array.from(getQuickRangeSelectionSet(targetKey));
+    const range = computeCombinedQuickRange(selection);
+    applyQuickRangeSelection(targetKey, range);
+    updateQuickRangeTriggerLabel(targetKey);
+}
+
+function closeActiveQuickRangeMenu() {
+    if (activeQuickRangeMenu) {
+        activeQuickRangeMenu.classList.remove('active');
+        activeQuickRangeMenu = null;
+    }
+}
+
+function setupQuickRangeMenus() {
+    const menus = document.querySelectorAll('.quick-range-menu');
+    menus.forEach(menu => {
+        const targetKey = menu.dataset.rangeTarget;
+        if (!targetKey || menu.dataset.quickRangeReady === 'true') {
+            return;
+        }
+
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'quick-range-options';
+        DATE_PRESETS.forEach(preset => {
+            const optionRow = document.createElement('label');
+            optionRow.className = 'quick-range-option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = preset.value;
+            optionRow.appendChild(checkbox);
+            const text = document.createElement('span');
+            text.textContent = preset.label;
+            optionRow.appendChild(text);
+            optionsContainer.appendChild(optionRow);
+        });
+        menu.appendChild(optionsContainer);
+
+        const actions = document.createElement('div');
+        actions.className = 'quick-range-actions';
+        const applyBtn = document.createElement('button');
+        applyBtn.type = 'button';
+        applyBtn.dataset.action = 'apply';
+        applyBtn.textContent = 'Appliquer';
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.dataset.action = 'clear';
+        clearBtn.textContent = 'Réinitialiser';
+        actions.appendChild(applyBtn);
+        actions.appendChild(clearBtn);
+        menu.appendChild(actions);
+
+        menu.dataset.quickRangeReady = 'true';
+
+        menu.addEventListener('change', (event) => {
+            const checkbox = event.target.closest('input[type="checkbox"]');
+            if (!checkbox) return;
+            const selection = getQuickRangeSelectionSet(targetKey);
+            if (checkbox.checked) {
+                selection.add(checkbox.value);
+            } else {
+                selection.delete(checkbox.value);
+            }
+            syncQuickRangeMenuState(targetKey);
+            updateQuickRangeTriggerLabel(targetKey);
+        });
+
+        menu.addEventListener('click', (event) => {
+            const actionBtn = event.target.closest('button[data-action]');
+            if (!actionBtn) return;
+            event.preventDefault();
+            if (actionBtn.dataset.action === 'apply') {
+                applyQuickRangeFromSelection(targetKey);
+                closeActiveQuickRangeMenu();
+            } else if (actionBtn.dataset.action === 'clear') {
+                clearQuickRangeSelection(targetKey);
+                applyQuickRangeSelection(targetKey, { from: '', to: '' });
+                closeActiveQuickRangeMenu();
+            }
+        });
+    });
+
+    const triggers = document.querySelectorAll('.quick-range-trigger');
+    triggers.forEach(trigger => {
+        if (!trigger.dataset.quickRangeReady) {
+            trigger.dataset.quickRangeReady = 'true';
+            trigger.dataset.defaultLabel = trigger.textContent.trim() || 'Choisir une période';
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                const target = trigger.dataset.rangeTarget;
+                if (!target) return;
+                const menu = document.querySelector(`.quick-range-menu[data-range-target="${target}"]`);
+                if (!menu) return;
+                if (activeQuickRangeMenu && activeQuickRangeMenu !== menu) {
+                    closeActiveQuickRangeMenu();
+                }
+                if (menu.classList.contains('active')) {
+                    menu.classList.remove('active');
+                    activeQuickRangeMenu = null;
+                } else {
+                    syncQuickRangeMenuState(target);
+                    menu.classList.add('active');
+                    activeQuickRangeMenu = menu;
+                }
+            });
+        }
+        if (trigger.dataset.rangeTarget) {
+            updateQuickRangeTriggerLabel(trigger.dataset.rangeTarget);
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        if (event.target.closest('.quick-range-menu') || event.target.closest('.quick-range-trigger')) {
+            return;
+        }
+        closeActiveQuickRangeMenu();
+    });
+
+    Object.entries(QUICK_RANGE_TARGETS).forEach(([targetKey, config]) => {
+        ['fromInput', 'toInput'].forEach(fieldKey => {
+            const inputId = config[fieldKey];
+            if (!inputId) return;
+            const inputEl = getEl(inputId);
+            if (inputEl && !inputEl.dataset.quickRangeBound) {
+                inputEl.dataset.quickRangeBound = 'true';
+                inputEl.addEventListener('input', () => {
+                    clearQuickRangeSelection(targetKey);
+                });
+            }
+        });
+    });
+}
+
 function updateWelcomeMessage() {
     // MODIFIÉ: Mettre à jour les panneaux utilisateur
     const welcomeDisplay = getEl('user-welcome-display'); // Ancien (caché)
@@ -177,6 +768,16 @@ function updateWelcomeMessage() {
 
     if (mobileWelcome) {
         mobileWelcome.textContent = message;
+    }
+    const mobileNavWelcome = getEl('mobile-main-welcome');
+    if (mobileNavWelcome) {
+        if (message) {
+            mobileNavWelcome.textContent = message;
+            mobileNavWelcome.classList.remove('hidden');
+        } else {
+            mobileNavWelcome.textContent = '';
+            mobileNavWelcome.classList.add('hidden');
+        }
     }
     if (mobileEmail) {
         mobileEmail.textContent = baseEmail;
@@ -386,7 +987,7 @@ function updateReportUserFilter() {
     const userSelect = getEl('report-filter-user');
     if (!userSelect) return;
 
-    const previousValue = reportFilterUserId;
+    const previousValues = Array.isArray(reportFilterUserIds) ? [...reportFilterUserIds] : [];
     userSelect.innerHTML = '<option value="all">Tous les intervenants</option>';
 
     const sortedUsers = [...allUsers]
@@ -409,12 +1010,45 @@ function updateReportUserFilter() {
         userSelect.appendChild(option);
     });
 
-    if (sortedUsers.some(user => user.id === previousValue)) {
-        userSelect.value = previousValue;
-    } else {
-        reportFilterUserId = 'all';
-        userSelect.value = 'all';
-    }
+    const validIds = new Set(sortedUsers.map(user => user.id));
+    reportFilterUserIds = previousValues.filter(val => validIds.has(val));
+    setMultiSelectValues(userSelect, reportFilterUserIds);
+    rebuildEnhancedMultiSelectOptions(userSelect);
+}
+
+function refreshDashboardFilterOptions() {
+    const userSelect = getEl('dashboard-filter-user');
+    const sortedUsers = [...allUsers]
+        .filter(user => user && user.id)
+        .sort((a, b) => {
+            const nameA = (getDisplayName(a) || a.email || '').toLowerCase();
+            const nameB = (getDisplayName(b) || b.email || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+
+    dashboardFilterUserIds = populateMultiSelectOptions({
+        element: userSelect,
+        items: sortedUsers,
+        getValue: (user) => user.id,
+        getLabel: (user) => {
+            const base = getDisplayName(user) || user.email || 'Utilisateur';
+            return user.fonction ? `${base} • ${user.fonction}` : base;
+        },
+        selectedValues: dashboardFilterUserIds,
+        allLabel: 'Tous les intervenants'
+    });
+
+    const sortedTypes = allEquipmentTypes.slice().sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+    dashboardFilterTypeIds = populateMultiSelectOptions({
+        elementId: 'dashboard-filter-type',
+        items: sortedTypes,
+        getValue: (type) => type.id,
+        getLabel: (type) => `${type.emoji || ''} ${type.label || ''}`.trim(),
+        selectedValues: dashboardFilterTypeIds,
+        allLabel: 'Tous les types'
+    });
+
+    renderDashboard();
 }
 
 function getSecondaryAuthInstance() {
@@ -539,17 +1173,25 @@ async function setupAuthListener() {
             delete document.body.dataset.role;
             allUsers = [];
             userSearchTerm = '';
-            reportFilterStoreId = 'all';
-            reportFilterUserId = 'all';
-            reportFilterFormId = 'all';
+            reportFilterStoreIds = [];
+            reportFilterUserIds = [];
+            reportFilterFormIds = [];
             reportFilterFrom = '';
             reportFilterTo = '';
+            dashboardFilterStoreIds = [];
+            dashboardFilterUserIds = [];
+            dashboardFilterFormIds = [];
+            dashboardFilterTypeIds = [];
+            dashboardFilterFrom = '';
+            dashboardFilterTo = '';
             isCreateUserFormOpen = false;
             updateReportUserFilter();
+            refreshDashboardFilterOptions();
             setCreateUserFormVisibility(false);
             const userSearchInput = getEl('user-search-input');
             if (userSearchInput) userSearchInput.value = '';
             stopDataListeners(); // Arrêter les écouteurs de données
+            updateNavigationForViewport();
         }
     });
 
@@ -638,8 +1280,11 @@ function initializeAppUI(role, email) {
     // Démarrer les écouteurs de données
     loadAllData(role);
 
+    updateNavigationForViewport();
+
     // Naviguer vers la page par défaut
-    navigateTo('scanner');
+    const landingPage = getDefaultLandingPage();
+    navigateTo(landingPage);
     processPendingDeepLink();
 }
 
@@ -678,11 +1323,12 @@ function loadAllData(role) {
     }, (error) => console.error("Erreur chargement formulaires:", error));
 
     // 2. Charger les types d'appareils
-     unsubEquipmentTypes = onSnapshot(equipmentTypesCollection, (snapshot) => {
-        allEquipmentTypes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (role === 'admin') renderEquipmentTypesList();
-        populateEquipmentTypeSelects();
-        console.log("Types d'appareils chargés:", allEquipmentTypes.length);
+    unsubEquipmentTypes = onSnapshot(equipmentTypesCollection, (snapshot) => {
+       allEquipmentTypes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+       if (role === 'admin') renderEquipmentTypesList();
+       populateEquipmentTypeSelects();
+        refreshDashboardFilterOptions();
+       console.log("Types d'appareils chargés:", allEquipmentTypes.length);
     }, (error) => console.error("Erreur chargement types appareils:", error));
 
     // 3. Charger les magasins
@@ -691,6 +1337,7 @@ function loadAllData(role) {
         storesLoaded = true;
         updateAllSelects();
         renderReportsList(); // Mettre à jour les noms de magasins dans les rapports
+        renderDashboard();
         console.log("Magasins chargés:", allStores.length);
         if (equipmentListenerReady && role === 'admin') renderStoresList();
         triggerDeepLinkCheck();
@@ -702,6 +1349,7 @@ function loadAllData(role) {
         equipmentListenerReady = true;
         console.log("Équipements chargés:", allEquipment.length);
         if (role === 'admin') renderStoresList();
+        renderDashboard();
         triggerDeepLinkCheck();
     }, (error) => console.error("Erreur chargement équipements:", error));
 
@@ -716,6 +1364,7 @@ function loadAllData(role) {
         });
         console.log("Rapports chargés:", allReports.length);
         renderReportsList();
+        renderDashboard();
     }, (error) => console.error("Erreur chargement rapports:", error));
 
     // 6. Charger les utilisateurs (Admin seulement)
@@ -732,8 +1381,7 @@ function loadAllData(role) {
 
 function updateAllSelects() {
     const storeSelects = [
-        getEl('equip-store-select'),
-        getEl('report-filter-store')
+        getEl('equip-store-select')
     ];
 
     const formSelects = [
@@ -743,52 +1391,77 @@ function updateAllSelects() {
 
     storeSelects.forEach(sel => {
         if(sel) {
-            const previousValue = sel.id === 'report-filter-store' ? reportFilterStoreId : sel.value;
-            const firstOptionValue = sel.options[0] ? sel.options[0].value : "all";
-            const firstOptionText = sel.options[0] ? sel.options[0].text : "Tous les magasins";
-
-            sel.innerHTML = `<option value="${firstOptionValue}">${firstOptionText}</option>`; // Garder la première option
-
-            allStores.sort((a,b) => (a.name || '').localeCompare(b.name || '')).forEach(store => {
-                const storeNameLabel = escapeHtml(store.name || 'Magasin');
-                const storeCodeLabel = store.code ? ` (${escapeHtml(store.code)})` : '';
-                sel.innerHTML += `<option value="${store.id}">${storeNameLabel}${storeCodeLabel}</option>`;
+            const previousValue = sel.value;
+            const firstOption = sel.options[0] ? sel.options[0].outerHTML : '<option value="">Sélectionnez</option>';
+            sel.innerHTML = firstOption;
+            allStores.slice().sort((a,b) => (a.name || '').localeCompare(b.name || '')).forEach(store => {
+                const option = document.createElement('option');
+                option.value = store.id;
+                const codeLabel = store.code ? ` (${store.code})` : '';
+                option.textContent = `${store.name || 'Magasin'}${codeLabel}`;
+                sel.appendChild(option);
             });
 
             if (Array.from(sel.options).some(option => option.value === previousValue)) {
                 sel.value = previousValue;
-            } else if (sel.id === 'report-filter-store') {
-                reportFilterStoreId = 'all';
-                sel.value = 'all';
+            } else if (sel.options.length > 0) {
+                sel.selectedIndex = 0;
             }
         }
+    });
+
+    const sortedStores = allStores.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    reportFilterStoreIds = populateMultiSelectOptions({
+        elementId: 'report-filter-store',
+        items: sortedStores,
+        getValue: (store) => store.id,
+        getLabel: (store) => `${store.name || 'Magasin'}${store.code ? ` (${store.code})` : ''}`,
+        selectedValues: reportFilterStoreIds,
+        allLabel: 'Tous les magasins'
+    });
+
+    dashboardFilterStoreIds = populateMultiSelectOptions({
+        elementId: 'dashboard-filter-store',
+        items: sortedStores,
+        getValue: (store) => store.id,
+        getLabel: (store) => `${store.name || 'Magasin'}${store.code ? ` (${store.code})` : ''}`,
+        selectedValues: dashboardFilterStoreIds,
+        allLabel: 'Tous les magasins'
     });
 
     formSelects.forEach(sel => {
          if(sel) {
             const firstOption = sel.options[0] ? sel.options[0].outerHTML : '<option value="">Sélectionnez</option>';
             sel.innerHTML = firstOption;
-            allForms.sort((a,b) => a.title.localeCompare(b.title)).forEach(form => {
-                sel.innerHTML += `<option value="${form.id}">${form.title}</option>`;
+            allForms.slice().sort((a,b) => a.title.localeCompare(b.title)).forEach(form => {
+                const option = document.createElement('option');
+                option.value = form.id;
+                option.textContent = form.title;
+                sel.appendChild(option);
             });
          }
     });
 
-    const reportFormSelect = getEl('report-filter-form');
-    if (reportFormSelect) {
-        const previousValue = reportFilterFormId;
-        reportFormSelect.innerHTML = '<option value="all">Tous les formulaires</option>';
-        allForms.sort((a,b) => a.title.localeCompare(b.title)).forEach(form => {
-            reportFormSelect.innerHTML += `<option value="${form.id}">${form.title}</option>`;
-        });
+    const sortedForms = allForms.slice().sort((a,b) => a.title.localeCompare(b.title));
+    reportFilterFormIds = populateMultiSelectOptions({
+        elementId: 'report-filter-form',
+        items: sortedForms,
+        getValue: (form) => form.id,
+        getLabel: (form) => form.title,
+        selectedValues: reportFilterFormIds,
+        allLabel: 'Tous les formulaires'
+    });
 
-        if (allForms.some(form => form.id === previousValue)) {
-            reportFormSelect.value = previousValue;
-        } else {
-            reportFilterFormId = 'all';
-            reportFormSelect.value = 'all';
-        }
-    }
+    dashboardFilterFormIds = populateMultiSelectOptions({
+        elementId: 'dashboard-filter-form',
+        items: sortedForms,
+        getValue: (form) => form.id,
+        getLabel: (form) => form.title,
+        selectedValues: dashboardFilterFormIds,
+        allLabel: 'Tous les formulaires'
+    });
+
+    renderDashboard();
 }
 
 // Remplit les listes déroulantes des types d'appareils
@@ -970,25 +1643,25 @@ function renderReportsList() {
     const filterSelect = getEl('report-filter-store');
     const countElement = getEl('reports-count');
 
-    if (!listContainer || !filterSelect) return;
+    if (!listContainer) return;
 
     const searchInput = getEl('report-search-input');
     if (searchInput && searchInput.value !== reportSearchTerm) {
         searchInput.value = reportSearchTerm;
     }
 
-    if (filterSelect && filterSelect.value !== reportFilterStoreId) {
-        filterSelect.value = reportFilterStoreId;
+    if (filterSelect) {
+        setMultiSelectValues(filterSelect, reportFilterStoreIds);
     }
 
     const userSelect = getEl('report-filter-user');
-    if (userSelect && userSelect.value !== reportFilterUserId) {
-        userSelect.value = reportFilterUserId;
+    if (userSelect) {
+        setMultiSelectValues(userSelect, reportFilterUserIds);
     }
 
     const formSelect = getEl('report-filter-form');
-    if (formSelect && formSelect.value !== reportFilterFormId) {
-        formSelect.value = reportFilterFormId;
+    if (formSelect) {
+        setMultiSelectValues(formSelect, reportFilterFormIds);
     }
 
     const fromInput = getEl('report-filter-from');
@@ -1007,7 +1680,9 @@ function renderReportsList() {
         return;
     }
 
-    const filterStoreId = reportFilterStoreId;
+    const storeFilterSet = new Set(reportFilterStoreIds);
+    const userFilterSet = new Set(reportFilterUserIds);
+    const formFilterSet = new Set(reportFilterFormIds);
     const normalizedSearch = reportSearchTerm.trim().toLowerCase();
     const fromDate = reportFilterFrom ? new Date(reportFilterFrom) : null;
     if (fromDate) fromDate.setHours(0, 0, 0, 0);
@@ -1015,18 +1690,18 @@ function renderReportsList() {
     if (toDate) toDate.setHours(23, 59, 59, 999);
 
     const hasActiveFilters = normalizedSearch.length > 0
-        || filterStoreId !== 'all'
-        || reportFilterUserId !== 'all'
-        || reportFilterFormId !== 'all'
+        || storeFilterSet.size > 0
+        || userFilterSet.size > 0
+        || formFilterSet.size > 0
         || Boolean(reportFilterFrom)
         || Boolean(reportFilterTo);
 
     const grouped = new Map();
 
     allReports.forEach(report => {
-        if (filterStoreId !== 'all' && report.storeId !== filterStoreId) return;
-        if (reportFilterUserId !== 'all' && report.userId !== reportFilterUserId) return;
-        if (reportFilterFormId !== 'all' && report.formId !== reportFilterFormId) return;
+        if (storeFilterSet.size > 0 && !storeFilterSet.has(report.storeId)) return;
+        if (userFilterSet.size > 0 && !userFilterSet.has(report.userId)) return;
+        if (formFilterSet.size > 0 && !formFilterSet.has(report.formId)) return;
 
         const reportDateObj = report.timestamp?.toDate ? report.timestamp.toDate() : null;
         if (fromDate && (!reportDateObj || reportDateObj < fromDate)) return;
@@ -1185,6 +1860,238 @@ function renderReportsList() {
     }).join('');
 }
 
+function getDashboardFilteredReports() {
+    const storeSet = new Set(dashboardFilterStoreIds);
+    const userSet = new Set(dashboardFilterUserIds);
+    const formSet = new Set(dashboardFilterFormIds);
+    const typeSet = new Set(dashboardFilterTypeIds);
+    const fromDate = dashboardFilterFrom ? new Date(dashboardFilterFrom) : null;
+    if (fromDate) fromDate.setHours(0, 0, 0, 0);
+    const toDate = dashboardFilterTo ? new Date(dashboardFilterTo) : null;
+    if (toDate) toDate.setHours(23, 59, 59, 999);
+
+    const storeMap = new Map(allStores.map(store => [store.id, store]));
+    const formMap = new Map(allForms.map(form => [form.id, form]));
+    const userMap = new Map(allUsers.map(user => [user.id, user]));
+    const equipmentMap = new Map(allEquipment.map(eq => [eq.id, eq]));
+    const typeMap = new Map(allEquipmentTypes.map(type => [type.id, type]));
+
+    const dataset = [];
+    allReports.forEach(report => {
+        if (storeSet.size > 0 && !storeSet.has(report.storeId)) return;
+        if (userSet.size > 0 && !userSet.has(report.userId)) return;
+        if (formSet.size > 0 && !formSet.has(report.formId)) return;
+
+        const equipment = equipmentMap.get(report.equipmentId);
+        const equipType = equipment ? (equipment.type || equipment.typeId) : null;
+        if (typeSet.size > 0 && (!equipType || !typeSet.has(equipType))) return;
+
+        const reportDate = report.timestamp?.toDate ? report.timestamp.toDate() : null;
+        if (fromDate && (!reportDate || reportDate < fromDate)) return;
+        if (toDate && (!reportDate || reportDate > toDate)) return;
+
+        dataset.push({
+            ...report,
+            _meta: {
+                date: reportDate,
+                store: storeMap.get(report.storeId) || null,
+                form: formMap.get(report.formId) || null,
+                user: userMap.get(report.userId) || null,
+                equipment,
+                equipmentType: equipType ? typeMap.get(equipType) : null
+            }
+        });
+    });
+    return dataset;
+}
+
+function renderDashboard() {
+    const totalEl = getEl('dashboard-total-visits');
+    if (!totalEl) return;
+
+    const filteredReports = getDashboardFilteredReports();
+    const total = filteredReports.length;
+    totalEl.textContent = String(total);
+
+    const lastUpdate = getEl('dashboard-last-update');
+    if (lastUpdate) {
+        lastUpdate.textContent = new Date().toLocaleString('fr-FR');
+    }
+
+    const todayStart = getStartOfDay(new Date());
+    const todayEnd = getEndOfDay(new Date());
+    const weekStart = getStartOfWeek(new Date());
+    const weekEnd = getEndOfWeek(new Date());
+    const monthStart = getStartOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    const now = new Date();
+
+    const todayCount = filteredReports.filter(r => r._meta.date && r._meta.date >= todayStart && r._meta.date <= todayEnd).length;
+    const weekCount = filteredReports.filter(r => r._meta.date && r._meta.date >= weekStart && r._meta.date <= weekEnd).length;
+    const monthCount = filteredReports.filter(r => r._meta.date && r._meta.date >= monthStart && r._meta.date <= now).length;
+
+    const todayEl = getEl('dashboard-today-visits');
+    if (todayEl) todayEl.textContent = String(todayCount);
+    const weekEl = getEl('dashboard-week-visits');
+    if (weekEl) weekEl.textContent = String(weekCount);
+    const monthEl = getEl('dashboard-month-visits');
+    if (monthEl) monthEl.textContent = String(monthCount);
+
+    const topStores = buildTopList(filteredReports, (report) => report.storeId, (report) => report._meta.store?.name || 'Magasin');
+    const topStoreEl = getEl('dashboard-top-stores');
+    if (topStoreEl) {
+        if (topStores.length === 0) {
+            topStoreEl.innerHTML = '<p class="text-sm text-gray-500">Aucune donnée disponible.</p>';
+        } else {
+            topStoreEl.innerHTML = topStores.slice(0, 5).map(item => `
+                <div class="dashboard-list-row">
+                    <span>${escapeHtml(item.label)}</span>
+                    <span>${item.count}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    const topForms = buildTopList(filteredReports, (report) => report.formId, (report) => report._meta.form?.title || 'Formulaire');
+    const topFormsEl = getEl('dashboard-top-forms');
+    if (topFormsEl) {
+        if (topForms.length === 0) {
+            topFormsEl.innerHTML = '<p class="text-sm text-gray-500">Aucune donnée disponible.</p>';
+        } else {
+            topFormsEl.innerHTML = topForms.slice(0, 5).map(item => `
+                <div class="dashboard-list-row">
+                    <span>${escapeHtml(item.label)}</span>
+                    <span>${item.count}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    const topFormCounter = getEl('dashboard-top-form-total');
+    if (topFormCounter) {
+        topFormCounter.textContent = `${topForms.length} formulaire(s)`;
+    }
+
+    const activeStores = new Set(filteredReports.map(r => r.storeId)).size;
+    const coveragePercent = allStores.length > 0 ? Math.round((activeStores / allStores.length) * 100) : 0;
+    const coverageEl = getEl('dashboard-coverage-percent');
+    if (coverageEl) coverageEl.textContent = `${coveragePercent}%`;
+    const coverageBar = getEl('dashboard-coverage-bar');
+    if (coverageBar) coverageBar.style.width = `${coveragePercent}%`;
+    const coverageDetails = getEl('dashboard-coverage-details');
+    if (coverageDetails) {
+        coverageDetails.textContent = `${activeStores} magasin(s) actifs sur ${allStores.length || 0}`;
+    }
+
+    const trendEl = getEl('dashboard-trend');
+    if (trendEl) {
+        const trendData = buildMonthlyTrend(filteredReports, 6);
+        if (trendData.length === 0) {
+            trendEl.innerHTML = '<p class="text-sm text-gray-500">Aucune donnée à afficher.</p>';
+        } else {
+            const maxValue = Math.max(...trendData.map(point => point.count), 1);
+            trendEl.innerHTML = trendData.map(point => {
+                const width = Math.round((point.count / maxValue) * 100);
+                return `
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>${escapeHtml(point.label)}</span>
+                            <span>${point.count}</span>
+                        </div>
+                        <div class="progress-wrapper mt-1">
+                            <div class="progress-bar" style="width:${width}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    const distributionEl = getEl('dashboard-form-distribution');
+    if (distributionEl) {
+        if (topForms.length === 0 || total === 0) {
+            distributionEl.innerHTML = '<p class="text-sm text-gray-500">Aucune donnée disponible.</p>';
+        } else {
+            distributionEl.innerHTML = topForms.map(item => {
+                const percent = Math.round((item.count / total) * 100);
+                return `
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>${escapeHtml(item.label)}</span>
+                            <span>${percent}%</span>
+                        </div>
+                        <div class="progress-wrapper mt-1">
+                            <div class="progress-bar" style="width:${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    const latestVisitsEl = getEl('dashboard-latest-visits');
+    if (latestVisitsEl) {
+        if (filteredReports.length === 0) {
+            latestVisitsEl.innerHTML = '<p class="text-sm text-gray-500">Aucune visite filtrée.</p>';
+        } else {
+            const latest = filteredReports
+                .filter(report => report._meta.date)
+                .sort((a, b) => b._meta.date - a._meta.date)
+                .slice(0, 5);
+            latestVisitsEl.innerHTML = latest.map(report => {
+                const label = getDisplayName(report._meta.user) || report._meta.user?.email || report.userEmail || 'Intervenant';
+                const storeName = report._meta.store?.name || 'Magasin';
+                const formattedDate = formatDashboardDateTime(report._meta.date);
+                return `
+                    <div class="border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
+                        <p class="font-medium text-gray-800">${escapeHtml(label)}</p>
+                        <p class="text-xs text-gray-500">${escapeHtml(storeName)} • ${escapeHtml(formattedDate)}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    const activityRate = allReports.length > 0 ? Math.round((total / allReports.length) * 100) : 0;
+    const activityRateEl = getEl('dashboard-activity-rate');
+    if (activityRateEl) activityRateEl.textContent = `${activityRate}%`;
+    const activityBar = getEl('dashboard-activity-bar');
+    if (activityBar) activityBar.style.width = `${activityRate}%`;
+
+    const topStoreCountEl = getEl('dashboard-top-store-total');
+    if (topStoreCountEl) {
+        topStoreCountEl.textContent = `${activeStores} magasin(s)`;
+    }
+}
+
+function buildTopList(reports, keySelector, labelSelector) {
+    const counts = new Map();
+    reports.forEach(report => {
+        const key = keySelector(report);
+        if (!key) return;
+        if (!counts.has(key)) {
+            counts.set(key, { label: labelSelector(report), count: 0 });
+        }
+        counts.get(key).count += 1;
+    });
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+}
+
+function buildMonthlyTrend(reports, months = 6) {
+    const data = [];
+    const current = new Date();
+    for (let i = months - 1; i >= 0; i--) {
+        const start = new Date(current.getFullYear(), current.getMonth() - i, 1);
+        const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+        const label = start.toLocaleString('fr-FR', { month: 'short', year: 'numeric' });
+        const count = reports.filter(report => {
+            const date = report._meta.date;
+            return date && date >= getStartOfDay(start) && date <= getEndOfDay(end);
+        }).length;
+        data.push({ label, count });
+    }
+    return data;
+}
+
 async function handleReportsListClick(e) {
     const toggleBtn = e.target.closest('.report-store-toggle');
     if (toggleBtn) {
@@ -1268,11 +2175,8 @@ function populateExcelModalFilters() {
             const codeLabel = store.code ? ` (${escapeHtml(store.code)})` : '';
             storeSelect.innerHTML += `<option value="${store.id}">${nameLabel}${codeLabel}</option>`;
         });
-        if (Array.from(storeSelect.options).some(opt => opt.value === reportFilterStoreId)) {
-            storeSelect.value = reportFilterStoreId;
-        } else {
-            storeSelect.value = 'all';
-        }
+        setMultiSelectValues(storeSelect, reportFilterStoreIds);
+        rebuildEnhancedMultiSelectOptions(storeSelect);
     }
 
     if (userSelect) {
@@ -1281,11 +2185,8 @@ function populateExcelModalFilters() {
             const label = escapeHtml(getDisplayName(user) || user.email || 'Utilisateur');
             userSelect.innerHTML += `<option value="${user.id}">${label}</option>`;
         });
-        if (Array.from(userSelect.options).some(opt => opt.value === reportFilterUserId)) {
-            userSelect.value = reportFilterUserId;
-        } else {
-            userSelect.value = 'all';
-        }
+        setMultiSelectValues(userSelect, reportFilterUserIds);
+        rebuildEnhancedMultiSelectOptions(userSelect);
     }
 
     if (formSelect) {
@@ -1293,15 +2194,16 @@ function populateExcelModalFilters() {
         allForms.slice().sort((a, b) => a.title.localeCompare(b.title)).forEach(form => {
             formSelect.innerHTML += `<option value="${form.id}">${escapeHtml(form.title)}</option>`;
         });
-        if (Array.from(formSelect.options).some(opt => opt.value === reportFilterFormId)) {
-            formSelect.value = reportFilterFormId;
-        } else {
-            formSelect.value = 'all';
-        }
+        setMultiSelectValues(formSelect, reportFilterFormIds);
+        rebuildEnhancedMultiSelectOptions(formSelect);
     }
 
     if (fromInput) fromInput.value = reportFilterFrom || '';
     if (toInput) toInput.value = reportFilterTo || '';
+
+    clearQuickRangeSelection('excel');
+    updateQuickRangeTriggerLabel('excel');
+    syncQuickRangeMenuState('excel');
 }
 
 function filterReportsForExport(filters) {
@@ -1310,10 +2212,14 @@ function filterReportsForExport(filters) {
     const toDate = filters.to ? new Date(filters.to) : null;
     if (toDate) toDate.setHours(23, 59, 59, 999);
 
+    const storeSet = new Set(Array.isArray(filters.storeIds) ? filters.storeIds : []);
+    const userSet = new Set(Array.isArray(filters.userIds) ? filters.userIds : []);
+    const formSet = new Set(Array.isArray(filters.formIds) ? filters.formIds : []);
+
     return allReports.filter(report => {
-        if (filters.storeId !== 'all' && report.storeId !== filters.storeId) return false;
-        if (filters.userId !== 'all' && report.userId !== filters.userId) return false;
-        if (filters.formId !== 'all' && report.formId !== filters.formId) return false;
+        if (storeSet.size > 0 && !storeSet.has(report.storeId)) return false;
+        if (userSet.size > 0 && !userSet.has(report.userId)) return false;
+        if (formSet.size > 0 && !formSet.has(report.formId)) return false;
 
         const reportDateObj = report.timestamp?.toDate ? report.timestamp.toDate() : null;
         if (fromDate && (!reportDateObj || reportDateObj < fromDate)) return false;
@@ -1366,6 +2272,16 @@ function formatReportDate(report) {
     return reportDateObj ? reportDateObj.toLocaleString('fr-FR') : '';
 }
 
+function formatDashboardDateTime(date) {
+    if (!date) return '';
+    return date.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
 function handleExcelExport(e) {
     e.preventDefault();
 
@@ -1381,9 +2297,9 @@ function handleExcelExport(e) {
     const toInput = getEl('excel-filter-to');
 
     const filters = {
-        storeId: storeSelectEl ? storeSelectEl.value : 'all',
-        userId: userSelectEl ? userSelectEl.value : 'all',
-        formId: formSelectEl ? formSelectEl.value : 'all',
+        storeIds: readMultiSelectValues(storeSelectEl),
+        userIds: readMultiSelectValues(userSelectEl),
+        formIds: readMultiSelectValues(formSelectEl),
         from: fromInput ? fromInput.value : '',
         to: toInput ? toInput.value : ''
     };
@@ -1522,6 +2438,7 @@ function renderUsersList(users) {
     }
 
     updateReportUserFilter();
+    refreshDashboardFilterOptions();
 
     const normalizedTerm = userSearchTerm.trim().toLowerCase();
     const filteredUsers = allUsers
@@ -1791,8 +2708,17 @@ function initializeAppEventListeners() {
     // Page Rapports
     setupReportEventListeners();
 
+    // Tableau de bord admin
+    setupDashboardEventListeners();
+
     // Modales
     setupModalEventListeners();
+
+    // Améliorations d'interface
+    setupMultiSelectEnhancements();
+
+    // Menus de sélection rapide pour les dates
+    setupQuickRangeMenus();
 }
 
 // Groupe: Authentification
@@ -1945,7 +2871,7 @@ function setupReportEventListeners() {
     const filterSelect = getEl('report-filter-store');
     if (filterSelect) {
         filterSelect.addEventListener('change', (e) => {
-            reportFilterStoreId = e.target.value || 'all';
+            reportFilterStoreIds = normalizeMultiSelectSelection(e.target);
             renderReportsList();
         });
     }
@@ -1961,7 +2887,7 @@ function setupReportEventListeners() {
     const userSelect = getEl('report-filter-user');
     if (userSelect) {
         userSelect.addEventListener('change', (e) => {
-            reportFilterUserId = e.target.value || 'all';
+            reportFilterUserIds = normalizeMultiSelectSelection(e.target);
             renderReportsList();
         });
     }
@@ -1969,7 +2895,7 @@ function setupReportEventListeners() {
     const formSelect = getEl('report-filter-form');
     if (formSelect) {
         formSelect.addEventListener('change', (e) => {
-            reportFilterFormId = e.target.value || 'all';
+            reportFilterFormIds = normalizeMultiSelectSelection(e.target);
             renderReportsList();
         });
     }
@@ -1978,6 +2904,7 @@ function setupReportEventListeners() {
     if (fromInput) {
         fromInput.addEventListener('change', (e) => {
             reportFilterFrom = e.target.value;
+            clearQuickRangeSelection('reports');
             renderReportsList();
         });
     }
@@ -1986,6 +2913,7 @@ function setupReportEventListeners() {
     if (toInput) {
         toInput.addEventListener('change', (e) => {
             reportFilterTo = e.target.value;
+            clearQuickRangeSelection('reports');
             renderReportsList();
         });
     }
@@ -1995,17 +2923,18 @@ function setupReportEventListeners() {
         resetBtn.addEventListener('click', (e) => {
             e.preventDefault();
             reportSearchTerm = '';
-            reportFilterStoreId = 'all';
-            reportFilterUserId = 'all';
-            reportFilterFormId = 'all';
+            reportFilterStoreIds = [];
+            reportFilterUserIds = [];
+            reportFilterFormIds = [];
             reportFilterFrom = '';
             reportFilterTo = '';
-            if (filterSelect) filterSelect.value = 'all';
-            if (userSelect) userSelect.value = 'all';
-            if (formSelect) formSelect.value = 'all';
+            if (filterSelect) setMultiSelectValues(filterSelect, []);
+            if (userSelect) setMultiSelectValues(userSelect, []);
+            if (formSelect) setMultiSelectValues(formSelect, []);
             if (searchInput) searchInput.value = '';
             if (fromInput) fromInput.value = '';
             if (toInput) toInput.value = '';
+            clearQuickRangeSelection('reports');
             renderReportsList();
         });
     }
@@ -2028,6 +2957,79 @@ function setupReportEventListeners() {
     const excelForm = getEl('excel-export-form');
     if (excelForm) {
         excelForm.addEventListener('submit', handleExcelExport);
+    }
+}
+
+function setupDashboardEventListeners() {
+    const storeSelect = getEl('dashboard-filter-store');
+    if (storeSelect) {
+        storeSelect.addEventListener('change', (e) => {
+            dashboardFilterStoreIds = normalizeMultiSelectSelection(e.target);
+            renderDashboard();
+        });
+    }
+
+    const userSelect = getEl('dashboard-filter-user');
+    if (userSelect) {
+        userSelect.addEventListener('change', (e) => {
+            dashboardFilterUserIds = normalizeMultiSelectSelection(e.target);
+            renderDashboard();
+        });
+    }
+
+    const formSelect = getEl('dashboard-filter-form');
+    if (formSelect) {
+        formSelect.addEventListener('change', (e) => {
+            dashboardFilterFormIds = normalizeMultiSelectSelection(e.target);
+            renderDashboard();
+        });
+    }
+
+    const typeSelect = getEl('dashboard-filter-type');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', (e) => {
+            dashboardFilterTypeIds = normalizeMultiSelectSelection(e.target);
+            renderDashboard();
+        });
+    }
+
+    const fromInput = getEl('dashboard-filter-from');
+    if (fromInput) {
+        fromInput.addEventListener('change', (e) => {
+            dashboardFilterFrom = e.target.value;
+            clearQuickRangeSelection('dashboard');
+            renderDashboard();
+        });
+    }
+
+    const toInput = getEl('dashboard-filter-to');
+    if (toInput) {
+        toInput.addEventListener('change', (e) => {
+            dashboardFilterTo = e.target.value;
+            clearQuickRangeSelection('dashboard');
+            renderDashboard();
+        });
+    }
+
+    const resetBtn = getEl('dashboard-reset-filters');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            dashboardFilterStoreIds = [];
+            dashboardFilterUserIds = [];
+            dashboardFilterFormIds = [];
+            dashboardFilterTypeIds = [];
+            dashboardFilterFrom = '';
+            dashboardFilterTo = '';
+            if (storeSelect) setMultiSelectValues(storeSelect, []);
+            if (userSelect) setMultiSelectValues(userSelect, []);
+            if (formSelect) setMultiSelectValues(formSelect, []);
+            if (typeSelect) setMultiSelectValues(typeSelect, []);
+            if (fromInput) fromInput.value = '';
+            if (toInput) toInput.value = '';
+            clearQuickRangeSelection('dashboard');
+            renderDashboard();
+        });
     }
 }
 
@@ -3530,6 +4532,28 @@ function hideMessageModal() {
 
 // --- Navigation et Utilitaires ---
 
+function getDefaultLandingPage() {
+    const isDesktop = window.innerWidth >= 1024;
+    if (currentUserRole === 'admin' && isDesktop) {
+        return 'dashboard';
+    }
+    return 'scanner';
+}
+
+function updateNavigationForViewport() {
+    const navScanner = getEl('nav-tab-scanner');
+    const navDashboard = getEl('nav-tab-dashboard');
+    if (!navScanner || !navDashboard) return;
+    const isDesktop = window.innerWidth >= 1024;
+    if (currentUserRole === 'admin' && isDesktop) {
+        navDashboard.classList.remove('hidden');
+        navScanner.classList.add('hidden');
+    } else {
+        navScanner.classList.remove('hidden');
+        navDashboard.classList.add('hidden');
+    }
+}
+
 function hideAllPages() {
     document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
 }
@@ -3560,6 +4584,8 @@ function navigateTo(pageId) {
          stopScan();
     }
 }
+
+window.addEventListener('resize', updateNavigationForViewport);
 
 // Démarrage de l'application
 if (document.readyState === 'loading') {
